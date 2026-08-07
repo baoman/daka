@@ -95,17 +95,23 @@ Deno.serve(async (request) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  const adminPassword = Deno.env.get('ADMIN_PASSWORD') || '';
   const admin = createClient(supabaseUrl, serviceKey);
 
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return reply({ error: '请求格式错误。' }, 400); }
   const action = body.action;
 
-  // -- 身份识别：家长带 parentOwnerId（免登），孩子走匿名会话 --
+  // -- 身份识别：家长带 parentOwnerId + 密码验证 --
   const parentOwnerId = typeof body.parentOwnerId === 'string' && body.parentOwnerId.length > 0 ? body.parentOwnerId : null;
   let userId: string, isParent: boolean;
 
   if (parentOwnerId) {
+    // 验证密码（如果已设置 ADMIN_PASSWORD）
+    if (adminPassword) {
+      const inputPwd = String(body.password || '');
+      if (inputPwd !== adminPassword) return reply({ error: '家长密码不正确。' }, 403);
+    }
     userId = parentOwnerId; isParent = true;
   } else {
     const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });

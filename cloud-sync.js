@@ -173,19 +173,7 @@
     return data || [];
   }
 
-  // ===== 免登家长模式（使用 service_role，无需登录） =====
-
-  let adminClient = null;
-
-  async function getAdminClient() {
-    if (!config.supabaseServiceRoleKey) throw new Error('缺少 service_role 密钥。');
-    if (adminClient) return adminClient;
-    await loadSdk();
-    adminClient = window.supabase.createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false }
-    });
-    return adminClient;
-  }
+  // ===== 家长管理模式（密码验证，经 Edge Function 执行） =====
 
   function getOrCreateFamilyOwnerId() {
     let id = localStorage.getItem('summer_parent_owner_id') || localStorage.getItem('summer_family_owner_id');
@@ -196,16 +184,31 @@
     return id;
   }
 
+  function getAdminPassword() {
+    return sessionStorage.getItem('summer_admin_password') || '';
+  }
+
+  function setAdminPassword(pwd) {
+    if (pwd) sessionStorage.setItem('summer_admin_password', pwd);
+    else sessionStorage.removeItem('summer_admin_password');
+  }
+
   async function invokeAsAdmin(action, payload) {
-    const api = await getAdminClient();
+    const api = await getClient();
     const parentOwnerId = getOrCreateFamilyOwnerId();
-    const body = { action, parentOwnerId, ...(payload || {}) };
+    const password = getAdminPassword();
+    const body = { action, parentOwnerId, password, ...(payload || {}) };
     const { data, error } = await api.functions.invoke(config.functionName, { body });
     if (error) {
       let message = data?.error || '';
       const response = error.context;
       if (!message && response && typeof response.clone === 'function') {
         try { const details = await response.clone().json(); message = details?.error || details?.message || ''; } catch (_) {}
+      }
+      // 密码错误 → 清除密码，让页面重新提示输入
+      if (message === '家长密码不正确。') {
+        setAdminPassword('');
+        throw new Error('家长密码不正确，请重新输入。');
       }
       throw new Error(message || error.message || '请求失败。');
     }
@@ -357,6 +360,8 @@
     fetchCheckins,
     // 家长管理
     getOrCreateFamilyOwnerId,
+    getAdminPassword,
+    setAdminPassword,
     invokeAsAdmin,
     fetchCheckinsAsAdmin,
     fetchCheckinsForChild,
