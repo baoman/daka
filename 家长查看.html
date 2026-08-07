@@ -58,6 +58,19 @@
 </div>
 </main>
 
+<!-- 密码输入弹窗 -->
+<div class="modal-overlay" id="pwdOverlay" style="display:none">
+  <div class="modal-box">
+    <h2>🔐 家长验证</h2>
+    <p style="color:var(--muted);font-size:13px;margin:8px 0 16px">请输入家长密码以查看管理页面</p>
+    <input id="pwdInput" type="password" placeholder="请输入家长密码" onkeydown="if(event.key==='Enter')submitPassword()" autocomplete="off" style="width:100%;padding:12px 14px;border:2px solid var(--line);border-radius:12px;font-size:16px;outline:none">
+    <div id="pwdError" style="color:var(--red);font-size:12px;margin-top:8px"></div>
+    <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+      <button class="primary" type="button" onclick="submitPassword()" style="padding:10px 28px">确认</button>
+    </div>
+  </div>
+</div>
+
 <script src="cloud-config.js?v=2.0.0"></script><script src="cloud-sync.js?v=3.0.5"></script>
 <script>
 let rows=[];let activeDate='';let scheduleOverrides={};let currentSchedule=[];
@@ -152,16 +165,4 @@ async function submitPassword() {
 })();
 </script>
 
-<!-- 密码输入弹窗 -->
-<div class="modal-overlay" id="pwdOverlay" style="display:none">
-  <div class="modal-box">
-    <h2>🔐 家长验证</h2>
-    <p style="color:var(--muted);font-size:13px;margin:8px 0 16px">请输入家长密码以查看管理页面</p>
-    <input id="pwdInput" type="password" placeholder="请输入家长密码" onkeydown="if(event.key==='Enter')submitPassword()" autocomplete="off" style="width:100%;padding:12px 14px;border:2px solid var(--line);border-radius:12px;font-size:16px;outline:none">
-    <div id="pwdError" style="color:var(--red);font-size:12px;margin-top:8px"></div>
-    <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
-      <button class="primary" type="button" onclick="submitPassword()" style="padding:10px 28px">确认</button>
-    </div>
-  </div>
-</div>
 </body></html>
