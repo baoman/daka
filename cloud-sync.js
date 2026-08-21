@@ -1,6 +1,8 @@
 (function () {
   const config = window.SUMMER_CLOUD_CONFIG;
+  // 本地优先（随项目打包，避免国内手机网络打不开 jsdelivr/unpkg 导致 SDK 加载失败），CDN 兜底
   const SDK_URLS = [
+    'vendor/supabase.min.js',
     'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
     'https://unpkg.com/@supabase/supabase-js@2'
   ];
@@ -84,6 +86,10 @@
     if (error) throw error;
   }
 
+  function isNetworkError(msg) {
+    return /fetch|network|Failed to fetch|NetworkError|timeout|ECONN|ENOTFOUND|getaddrinfo|aborted/i.test(msg || '');
+  }
+
   async function invoke(action, payload) {
     const api = await getClient();
     const { data, error } = await api.functions.invoke(config.functionName, { body: { action, ...(payload || {}) } });
@@ -96,6 +102,9 @@
           const details = await response.clone().json();
           message = details?.error || details?.message || '';
         } catch (_) {}
+      }
+      if (!message && isNetworkError(error.message)) {
+        message = '网络无法连接服务器（可能手机网络访问不到 Supabase）。请切换网络/WiFi，或换浏览器重试。';
       }
       throw new Error(message || error.message || '请求失败。');
     }
@@ -195,9 +204,9 @@
 
   async function invokeAsAdmin(action, payload) {
     const api = await getClient();
-    const parentOwnerId = getOrCreateFamilyOwnerId();
     const password = getAdminPassword();
-    const body = { action, parentOwnerId, password, ...(payload || {}) };
+    // parentOwnerId 仅作"家长入口"标记；真实身份由后端按密码固定为单一家庭身份
+    const body = { action, parentOwnerId: 'parent', password, ...(payload || {}) };
     const { data, error } = await api.functions.invoke(config.functionName, { body });
     if (error) {
       let message = data?.error || '';
@@ -283,13 +292,8 @@
   }
 
   async function fetchCheckinsForChild(childId, days) {
-    const api = await getAdminClient();
-    const parentOwnerId = getOrCreateFamilyOwnerId();
-    const body = { action: 'fetch_checkins', parentOwnerId, childId, days };
-    const { data, error } = await api.functions.invoke(config.functionName, { body });
-    if (error) throw new Error(data?.error || error.message || '请求失败。');
-    if (data && data.error) throw new Error(data.error);
-    return data || {};
+    const { checkins } = await invokeAsAdmin('fetch_checkins', { childId, days });
+    return checkins || [];
   }
 
   // ===== 孩子进度（云端持久化） =====

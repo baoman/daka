@@ -102,22 +102,34 @@ Deno.serve(async (request) => {
   try { body = await request.json(); } catch { return reply({ error: '请求格式错误。' }, 400); }
   const action = body.action;
 
-  // -- 身份识别：家长带 parentOwnerId + 密码验证 --
+  // -- 身份识别 --
+  // 家长身份固定为单一家庭身份（与具体设备/浏览器无关），确保换设备、清缓存后仍能看到同一份数据。
+  // parentOwnerId 仅作为"这是家长请求"的入口标记；真实身份由后端统一固定，不再使用前端随机生成的 owner_id。
+  const FAMILY_OWNER_ID = '11111111-1111-1111-1111-111111111111';
   const parentOwnerId = typeof body.parentOwnerId === 'string' && body.parentOwnerId.length > 0 ? body.parentOwnerId : null;
   let userId: string, isParent: boolean;
 
   if (parentOwnerId) {
-    // 验证密码（如果已设置 ADMIN_PASSWORD）
+    // 验证密码（如果已设置 ADMIN_PASSWORD），仅用于"挡住孩子"，不参与身份派生
     if (adminPassword) {
       const inputPwd = String(body.password || '');
       if (inputPwd !== adminPassword) return reply({ error: '家长密码不正确。' }, 403);
     }
-    userId = parentOwnerId; isParent = true;
+    userId = FAMILY_OWNER_ID; isParent = true;
   } else {
     const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
     const { data: authData, error: authError } = await userClient.auth.getUser();
     if (authError || !authData.user) return reply({ error: '登录状态无效。' }, 401);
     userId = authData.user.id; isParent = !authData.user.is_anonymous;
+  }
+
+  // 一次性把历史 owner_id 归并到单一家庭身份（幂等；单家庭场景安全）。
+  // 迁移必须由已通过密码验证的家长请求触发，因此放在此处。
+  if (isParent) {
+    try {
+      await admin.from('children').update({ owner_id: FAMILY_OWNER_ID }).neq('owner_id', FAMILY_OWNER_ID);
+      await admin.from('schedule_overrides').update({ owner_id: FAMILY_OWNER_ID }).neq('owner_id', FAMILY_OWNER_ID);
+    } catch (_) { /* 迁移失败不影响本次请求 */ }
   }
 
   // ===== 孩子管理 =====
