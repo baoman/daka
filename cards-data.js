@@ -91,7 +91,7 @@
 
   /* ── 卡图素材映射（自动从 CARD_POOL 生成）── */
   const CARD_ARTWORK = {};
-  CARD_POOL.forEach(card => { CARD_ARTWORK[card.id] = `/cards/${card.id}.png`; });
+  CARD_POOL.forEach(card => { CARD_ARTWORK[card.id] = `cards/${card.id}.png`; });
 
   /* ── 卡片渲染（优先用图片，降级到 SVG）── */
   function buildEggSvg(card) {
