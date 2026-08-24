@@ -318,12 +318,12 @@
     return invokeAsAdmin('list_children');
   }
 
-  async function createChild(name, password) {
-    return invokeAsAdmin('create_child', { name, password });
+  async function createChild(name, code) {
+    return invokeAsAdmin('create_child', { name, code });
   }
 
-  async function updateChild(childId, name, password) {
-    return invokeAsAdmin('update_child', { childId, name, password });
+  async function updateChild(childId, name, code) {
+    return invokeAsAdmin('update_child', { childId, name, code });
   }
 
   async function deleteChild(childId) {
