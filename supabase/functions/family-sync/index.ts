@@ -326,10 +326,9 @@ Deno.serve(async (request) => {
     return reply({ ok: true, checkins: all });
   }
 
-  // ===== 课表（家长个人 owner_id） =====
+  // ===== 课表（家庭级共享：家长保存、孩子读取都按单一家庭身份，确保小朋友端能看到家长调整的课表）=====
   if (action === 'get_schedule') {
-    const ownerId = isParent ? userId : null;
-    if (!ownerId) return reply({ error: '请先登录家长账号。' }, 403);
+    const ownerId = FAMILY_OWNER_ID;
     const from = validScheduleDate(body.from) ? String(body.from) : new Date().toISOString().slice(0, 10);
     const to = validScheduleDate(body.to) ? String(body.to) : from;
     const { data, error } = await admin.from('schedule_overrides').select('schedule_date, tasks, version, updated_at').eq('owner_id', ownerId).gte('schedule_date', from).lte('schedule_date', to).order('schedule_date');
