@@ -2521,7 +2521,6 @@
     <div class="library-header">
       <div class="library-title"><span class="icon">📔</span><span>我的收藏册</span></div>
       <div class="library-header-actions">
-        <button class="card-action secondary" type="button" onclick="openCardCatalogPage()">查看全部卡面</button>
         <button class="card-action secondary" type="button" onclick="leaveLibraryPage()">← 返回打卡页</button>
       </div>
     </div>
@@ -2559,22 +2558,6 @@
       <button class="tab-btn" type="button" onclick="setLibraryFilter('SSR', this)">SSR</button>
     </div>
     <div id="libraryContent"></div>
-  </div>
-</div>
-
-<div class="library-page" id="catalogPage">
-  <div class="library-shell">
-    <div class="library-header">
-      <div class="library-title"><span class="icon">✨</span><span>全部卡面预览</span></div>
-      <div class="library-header-actions">
-        <button class="card-action secondary" type="button" onclick="closeCardCatalogPage()">← 返回我的收藏册</button>
-      </div>
-    </div>
-    <div class="catalog-intro">
-      <div class="title">这里展示全部卡片正面</div>
-      <div class="sub">不受是否已解锁限制，方便你统一查看每一张卡的正面、名称、主题和描述，再告诉我哪些卡想继续优化。</div>
-    </div>
-    <div class="catalog-board" id="catalogBoard"></div>
   </div>
 </div>
 
@@ -3558,35 +3541,6 @@
       </div>`;
   }
 
-  function buildCatalogCard(card) {
-    return `
-      <div class="catalog-tile">
-        ${buildCardTile(card, 1, 'catalog')}
-        <div class="catalog-note">
-          <div class="name">${card.name} · ${card.rarity}</div>
-          <div class="desc">${card.desc||''}<br>${card.icon||'🥚'} ${card.skill}</div>
-        </div>
-      </div>`;
-  }
-
-  function renderCatalogPage() {
-    const board = document.getElementById('catalogBoard');
-    const groups = {
-      R: CARD_POOL.filter((card) => card.rarity === 'R'),
-      SR: CARD_POOL.filter((card) => card.rarity === 'SR'),
-      SSR: CARD_POOL.filter((card) => card.rarity === 'SSR')
-    };
-    board.innerHTML = ['R', 'SR', 'SSR'].map((rarity) => `
-      <section class="catalog-group">
-        <div class="catalog-group-head">
-          <h3><span class="rarity-pill ${rarityClass(rarity)}">${rarity}</span>${rarity} 卡正面预览</h3>
-          <div class="catalog-group-meta">共 ${groups[rarity].length} 张</div>
-        </div>
-        <div class="catalog-card-grid">${groups[rarity].map((card) => buildCatalogCard(card)).join('')}</div>
-      </section>
-    `).join('');
-  }
-
   function renderStats() {
     const totalStars = getTotalStars();
     const owned = getOwnedTotalCount();
@@ -3597,7 +3551,7 @@
     document.getElementById('ownedCards').textContent = owned;
     document.getElementById('starHint').textContent = totalStars >= 6 ? '星星可去收藏册解锁 R / SR。' : totalStars >= 3 ? '星星可去收藏册解锁 R。' : '继续攒星星。';
     document.getElementById('checkinHint').textContent = checkinStreak > 0 ? `已连打 ${checkinStreak} 天。` : '今天开始记第 1 天。';
-    document.getElementById('ownedHint').textContent = owned > 0 ? `已解锁 ${getUnlockedKindsCount()} / ${CARD_POOL.length} 种，点这里直接进收藏册。` : '点这里直接进收藏册，也可以先看全部卡面。';
+    document.getElementById('ownedHint').textContent = owned > 0 ? `已解锁 ${getUnlockedKindsCount()} / ${CARD_POOL.length} 种，点这里直接进收藏册。` : '点这里直接进收藏册。';
   }
 
   function renderWeekStrip() {
@@ -3988,23 +3942,12 @@
   function enterLibraryPage() {
     renderLibrarySummary();
     renderLibraryContent();
-    document.getElementById('catalogPage').classList.remove('show');
     document.getElementById('libraryPage').classList.add('show');
     syncOverlayLock();
   }
 
   function leaveLibraryPage() {
     document.getElementById('libraryPage').classList.remove('show');
-    syncOverlayLock();
-  }
-
-  function openCardCatalogPage() {
-    window.location.href = '全部卡片预览.html';
-  }
-
-  function closeCardCatalogPage() {
-    document.getElementById('catalogPage').classList.remove('show');
-    document.getElementById('libraryPage').classList.add('show');
     syncOverlayLock();
   }
 
