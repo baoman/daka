@@ -646,6 +646,7 @@
   .badge-cn { color: #e0597a; }
   .badge-en { color: #4d7ad8; }
   .badge-ma { color: #2ea87e; }
+  .badge-other { color: #9b6dd6; }
 
   .off-day {
     padding: 22px;
@@ -3660,7 +3661,7 @@
               <div class="task-name">${task.name}</div>
               <div class="task-detail">${task.detail}</div>
             </div>
-            <span class="task-badge badge-${task.subject}">${task.subject === 'cn' ? '语文' : task.subject === 'en' ? '英语' : '数学'}</span>
+            <span class="task-badge badge-${task.subject}">${{cn:'语文',en:'英语',ma:'数学',other:'综合'}[task.subject]||'综合'}</span>
           </li>`;
       });
       html += '</ul></div>';
