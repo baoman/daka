@@ -2351,6 +2351,8 @@
       <div class="redeem-toolbar">
         <span class="redeem-status" id="redeemStatus">输入兑换码，领取惊喜奖励</span>
         <button class="redeem-btn primary" type="button" id="redeemOpenBtn" onclick="openRedeemModal()">输入兑换码</button>
+        <button class="redeem-btn" type="button" id="syncCloudBtn" onclick="manualSyncToCloud()">☁️ 同步到云端</button>
+        <span class="redeem-status" id="syncStatus" style="color:#0a7d3b"></span>
       </div>
     </div>
     <div class="topbar-art">
@@ -3203,8 +3205,37 @@
       }
       clearCloudPending(synced);
       console.log('[sync] 已同步', synced.length, '天:', synced.join(', '));
+      return synced.length;
     } catch (e) {
       console.warn('[sync] 同步失败:', e.message || e);
+      return 0;
+    }
+  }
+
+  // 手动触发：先把云端最新数据拉下来合并，再把本地（含历史）打卡与进度推上去，保证双向一致
+  async function manualSyncToCloud() {
+    const btn = document.getElementById('syncCloudBtn');
+    const status = document.getElementById('syncStatus');
+    if (!btn || btn.disabled) return;
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '☁️ 同步中…';
+    if (status) status.textContent = '正在同步…';
+    let ok = true;
+    try {
+      await syncCheckinsFromCloud();
+      await syncChildProgressFromCloud();
+      const n = await syncAllCheckins();
+      pushChildProgress();
+      if (status) status.textContent = n > 0 ? `已上传 ${n} 天打卡 ✓` : '已是最新 ✓';
+    } catch (e) {
+      ok = false;
+      if (status) status.textContent = '同步失败，请检查网络';
+      console.warn('[sync] 手动同步失败:', e.message || e);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+      setTimeout(() => { if (status && status.textContent.indexOf('失败') === -1) status.textContent = ''; }, 3000);
     }
   }
 
@@ -4136,15 +4167,17 @@
     }, 500);
   }
 
-  function initApp() {
+  async function initApp() {
     rewardState = loadRewardState();
     const s = window.SummerCloud.getChildSession();
     if (s) document.getElementById('welcomeName').textContent = '👋 ' + s.childName + '，开始打卡吧！';
     syncRewardFromChecks();
     renderAll();
-    // 异步从云端同步进度（不阻塞 UI）
-    syncChildProgressFromCloud();
-    syncCheckinsFromCloud();
+    // 先拉取云端进度（合并到本地），再把本地（含历史）打卡数据推到云端，
+    // 这样即便只是打开 App、没有重新勾选任务，昨天及更早的本地打卡也会自动上云。
+    try { await syncChildProgressFromCloud(); } catch (e) {}
+    try { await syncCheckinsFromCloud(); } catch (e) {}
+    try { await syncAllCheckins(); pushChildProgress(); } catch (e) {}
   }
 
   function doLogout() {
