@@ -3084,7 +3084,8 @@
     if (scheduleRefreshInFlight || !window.SummerCloud || !window.SummerCloud.isConfigured()) return;
     scheduleRefreshInFlight = true;
     const today = new Date();
-    const from = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1));
+    // 向前多拉 60 天，保证连续打卡天数所涉及的较早日期也能拿到对应课表（任务列表）
+    const from = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 60));
     const to = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 45));
     try {
       const result = await window.SummerCloud.getSchedule(from, to);
@@ -3278,6 +3279,8 @@
       const storedState = storedText ? JSON.parse(storedText) : {};
       // 保存前合并当前已落盘账本，避免重新渲染或页面切换覆盖刚完成的星星解锁/掉卡。
       rewardState = mergeCurrentRewardStates(storedState, rewardState);
+      // 连续打卡天数由打卡记录实时推导，落盘/上传前刷新，保证跨设备一致
+      try { rewardState.streak = computeCheckinStreak(); } catch (e) {}
       localStorage.setItem(REWARD_KEY(), JSON.stringify(rewardState));
       pushChildProgress();
       markSchemaVersion();
@@ -4146,12 +4149,14 @@
       let changed = false;
       for (const row of remote) {
         const d = row.check_date;
-        const rc = (row.checks && typeof row.checks === 'object') ? row.checks : {};
+        const rcRaw = (row.checks && typeof row.checks === 'object') ? row.checks : {};
+        // 云端存的是 { values:{taskId:bool}, tasks:[...], scheduleVersion }；取 values 作为扁平映射。
+        // 兼容旧格式：若没有 values 字段则整段当作扁平映射。
+        const rc = (rcRaw && typeof rcRaw.values === 'object' && rcRaw.values !== null) ? rcRaw.values : rcRaw;
         const base = local[d] || {};
-        const keys = new Set([...Object.keys(base), ...Object.keys(rc)]);
-        let same = true;
-        for (const k of keys) { if (base[k] !== rc[k]) { same = false; break; } }
-        if (!same) { local[d] = Object.assign({}, base, rc); changed = true; }
+        // 云端完成状态优先；本地独有任务（云端没有的 key）予以保留
+        const merged = Object.assign({}, base, rc);
+        if (JSON.stringify(merged) !== JSON.stringify(base)) { local[d] = merged; changed = true; }
       }
       if (changed) { saveChecks(local); renderAll(); }
     } catch (e) {}
@@ -4173,11 +4178,18 @@
     if (s) document.getElementById('welcomeName').textContent = '👋 ' + s.childName + '，开始打卡吧！';
     syncRewardFromChecks();
     renderAll();
-    // 先拉取云端进度（合并到本地），再把本地（含历史）打卡数据推到云端，
-    // 这样即便只是打开 App、没有重新勾选任务，昨天及更早的本地打卡也会自动上云。
-    try { await syncChildProgressFromCloud(); } catch (e) {}
+    // 同步顺序：
+    // 1) 先把本地（含昨天及更早）打卡推上云，避免待会儿拉取时被云端旧数据覆盖；
+    // 2) 再拉云端打卡合并到本地；
+    // 3) 拉进度/星级；
+    // 4) 拉取课表（决定每天的任务列表）——这一步之前“连续打卡天数/待办”可能因任务列表缺失而算错；
+    // 5) 课表就位后重算连续打卡天数并上传，保证跨设备一致。
+    try { await syncAllCheckins(); } catch (e) {}
     try { await syncCheckinsFromCloud(); } catch (e) {}
-    try { await syncAllCheckins(); pushChildProgress(); } catch (e) {}
+    try { await syncChildProgressFromCloud(); } catch (e) {}
+    try { await refreshScheduleOverrides(); } catch (e) {}
+    try { rewardState.streak = computeCheckinStreak(); } catch (e) {}
+    try { pushChildProgress(); } catch (e) {}
   }
 
   function doLogout() {
