@@ -1551,6 +1551,14 @@
     color: #a57712;
   }
 
+  .guide-step.pr  { background: linear-gradient(135deg, rgba(245,232,255,.95), rgba(255,255,255,.92)); color: #a64bb0; }
+  .guide-step.hr  { background: linear-gradient(135deg, rgba(255,235,228,.96), rgba(255,255,255,.92)); color: #b5502a; }
+  .guide-step.ur  { background: linear-gradient(135deg, rgba(236,232,255,.96), rgba(255,255,255,.92)); color: #5533aa; }
+  .guide-step.cp  { background: linear-gradient(135deg, rgba(232,238,255,.96), rgba(255,255,255,.92)); color: #4466bb; }
+  .guide-step.lgr { background: linear-gradient(135deg, rgba(255,247,226,.96), rgba(255,255,255,.92)); color: #9a7700; }
+  .guide-step.gp  { background: linear-gradient(135deg, rgba(255,243,210,.97), rgba(255,255,255,.92)); color: #b8860b; }
+  .guide-step.sp  { background: linear-gradient(135deg, rgba(232,232,248,.97), rgba(255,255,255,.92)); color: #55558a; }
+
   .tab-btn {
     padding: 9px 14px;
     border-radius: 999px;
@@ -2547,18 +2555,32 @@
       <div class="album-track"><div class="album-fill" id="albumProgressFill"></div></div>
     </div>
     <div class="library-guide">
-      <div class="library-guide-title">解锁规则说明</div>
+      <div class="library-guide-title">解锁规则说明（按获取难度）</div>
       <div class="library-guide-steps">
-        <span class="guide-step r">R：消耗 3 颗星点卡背解锁</span>
-        <span class="guide-step sr">SR：消耗 6 颗星点卡背解锁</span>
-        <span class="guide-step ssr">SSR：连续完成 7 天任务后自动解锁</span>
+        <span class="guide-step r">R：3 ⭐</span>
+        <span class="guide-step sr">SR：6 ⭐</span>
+        <span class="guide-step pr">PR：9 ⭐</span>
+        <span class="guide-step ssr">SSR：12 ⭐</span>
+        <span class="guide-step hr">HR：18 ⭐</span>
+        <span class="guide-step ur">UR：24 ⭐</span>
+        <span class="guide-step cp">CP：30 ⭐</span>
+        <span class="guide-step lgr">LGR：36 ⭐</span>
+        <span class="guide-step gp">GP：家长码</span>
+        <span class="guide-step sp">SP：家长码</span>
       </div>
     </div>
     <div class="library-filter">
       <button class="tab-btn active" type="button" onclick="setLibraryFilter('ALL', this)">全部</button>
       <button class="tab-btn" type="button" onclick="setLibraryFilter('R', this)">R</button>
       <button class="tab-btn" type="button" onclick="setLibraryFilter('SR', this)">SR</button>
+      <button class="tab-btn" type="button" onclick="setLibraryFilter('PR', this)">PR</button>
       <button class="tab-btn" type="button" onclick="setLibraryFilter('SSR', this)">SSR</button>
+      <button class="tab-btn" type="button" onclick="setLibraryFilter('HR', this)">HR</button>
+      <button class="tab-btn" type="button" onclick="setLibraryFilter('UR', this)">UR</button>
+      <button class="tab-btn" type="button" onclick="setLibraryFilter('CP', this)">CP</button>
+      <button class="tab-btn" type="button" onclick="setLibraryFilter('LGR', this)">LGR</button>
+      <button class="tab-btn" type="button" onclick="setLibraryFilter('GP', this)">GP</button>
+      <button class="tab-btn" type="button" onclick="setLibraryFilter('SP', this)">SP</button>
     </div>
     <div id="libraryContent"></div>
   </div>
@@ -2744,6 +2766,16 @@
     throw new Error('卡片数据模块加载失败：请确认 cards-data.js 已部署。');
   }
   const { CARD_POOL, CARD_ARTWORK, rarityClass, buildEggSvg, getCard } = window.CARD_DATA;
+
+  // 稀有度顺序（由易到难 = 获取难度递增）。收藏册需与家长“奖励发放”一致，覆盖全部 10 级。
+  const RARITY_ORDER = ['R', 'SR', 'PR', 'SSR', 'HR', 'UR', 'CP', 'LGR', 'GP', 'SP'];
+  // 按“获取难度”设置的星星解锁花费：越稀有花费越高；GP/SP 为最高稀有，仅限家长奖励码/活动获取（不可用星星直接解锁）。
+  const STAR_UNLOCK_COST = { R: 3, SR: 6, PR: 9, SSR: 12, HR: 18, UR: 24, CP: 30, LGR: 36, GP: null, SP: null };
+  function getUnlockCost(rarity) {
+    const c = STAR_UNLOCK_COST[rarity];
+    return (typeof c === 'number' && c > 0) ? c : null;
+  }
+
 
   let selectedDate = new Date();
   let libraryFilter = 'ALL';
@@ -3520,12 +3552,13 @@
     const owned = count > 0;
     const cls = rarityClass(card.rarity);
     const seriesCode = `MLP-${card.rarity}-${card.id.slice(-3).toUpperCase()}`;
-    const unlockCost = card.rarity === 'SR' ? 6 : card.rarity === 'R' ? 3 : null;
+    const unlockCost = getUnlockCost(card.rarity);
     if (!owned) {
       const canAttemptUnlock = context === 'library';
       const enoughStars = unlockCost ? getTotalStars() >= unlockCost : false;
       const stateClass = unlockCost ? (enoughStars ? 'can-unlock' : 'insufficient') : 'insufficient';
       const unlockAttr = canAttemptUnlock ? `onclick="attemptUnlockCard('${card.id}')"` : '';
+      const unlockNote = unlockCost ? `${unlockCost}⭐解锁` : '家长码获取';
       return `
         <div class="egg-card ${cls} ${canAttemptUnlock ? `locked ${stateClass}` : ''}" ${unlockAttr}>
           <div class="egg-card-inner">
@@ -3538,7 +3571,7 @@
                 <div class="back-center">
                   <div class="mark">✦</div>
                   <div class="tip">未解锁</div>
-                  <div class="unlock-note">${card.rarity === 'SSR' ? '7天自动解锁' : `${unlockCost}⭐解锁`}</div>
+                  <div class="unlock-note">${unlockNote}</div>
                 </div>
               </div>
             </div>
@@ -3588,7 +3621,12 @@
     document.getElementById('totalStars').textContent = totalStars;
     document.getElementById('checkinStreak').textContent = checkinStreak;
     document.getElementById('ownedCards').textContent = owned;
-    document.getElementById('starHint').textContent = totalStars >= 6 ? '星星可去收藏册解锁 R / SR。' : totalStars >= 3 ? '星星可去收藏册解锁 R。' : '继续攒星星。';
+    document.getElementById('starHint').textContent = totalStars >= 36 ? '星星可去收藏册解锁 LGR 等高级卡；GP/SP 需家长奖励码。'
+      : totalStars >= 24 ? '星星可去收藏册解锁 UR / CP 等稀有卡。'
+      : totalStars >= 12 ? '星星可去收藏册解锁 SSR / HR 卡。'
+      : totalStars >= 6 ? '星星可去收藏册解锁 R / SR / PR。'
+      : totalStars >= 3 ? '星星可去收藏册解锁 R 卡。'
+      : '继续攒星星，收藏册越稀有越要更多星星解锁。';
     document.getElementById('checkinHint').textContent = checkinStreak > 0 ? `已连打 ${checkinStreak} 天。` : '今天开始记第 1 天。';
     document.getElementById('ownedHint').textContent = owned > 0 ? `已解锁 ${getUnlockedKindsCount()} / ${CARD_POOL.length} 种，点这里直接进收藏册。` : '点这里直接进收藏册。';
   }
@@ -3810,8 +3848,9 @@
 
   function performStarUnlock(cardId) {
     const card = getCard(cardId);
-    if (!card || card.rarity === 'SSR') return;
-    const cost = card.rarity === 'SR' ? 6 : 3;
+    if (!card) return;
+    const cost = getUnlockCost(card.rarity);
+    if (cost == null) return;
     if (getTotalStars() < cost) {
       buildRewardModal([
         { type: 'quote', emoji: '🪄', title: '星星不够', desc: `${card.rarity} 卡需要 ${cost} 个星星才能解锁。` }
@@ -3846,9 +3885,10 @@
       openCardDetail(cardId);
       return;
     }
-    if (card.rarity === 'SSR') {
+    const cost = getUnlockCost(card.rarity);
+    if (cost == null) {
       buildRewardModal([
-        { type: 'quote', emoji: '🔒', title: '暂不可直接解锁', desc: 'SSR 卡需连续完成 7 天任务后自动解锁。' }
+        { type: 'quote', emoji: '🔒', title: '暂不可直接解锁', desc: `${card.rarity} 卡极为稀有，只能由家长通过奖励码或活动发放，继续加油吧！` }
       ]);
       return;
     }
@@ -3921,23 +3961,23 @@
     document.getElementById('albumProgressText').textContent = `${unlockedKinds} / ${totalKinds} · ${pct}%`;
     document.getElementById('albumProgressFill').style.width = `${pct}%`;
     document.getElementById('libraryStars').textContent = `⭐ ${totalStars}`;
-    document.getElementById('libraryUnlockTip').textContent = totalStars >= 6
-      ? '当前星星足够解锁 R / SR 卡；SSR 需要连续完成 7 天任务后自动解锁。'
-      : totalStars >= 3
-        ? '当前星星足够解锁 R 卡；SR 还需要继续攒到 6 颗星。'
-        : 'R 卡需要 3 颗星，SR 卡需要 6 颗星；SSR 需要连续完成 7 天任务后自动解锁。';
-    document.getElementById('walletRBadge').textContent = 'R：3 颗星解锁';
-    document.getElementById('walletSRBadge').textContent = 'SR：6 颗星解锁';
-    document.getElementById('walletSSRBadge').textContent = 'SSR：7天任务自动解锁';
+    // 按获取难度（稀有度）展示星星解锁门槛提示
+    const nextStarRarity = RARITY_ORDER.find((r) => {
+      const c = getUnlockCost(r);
+      return c != null && totalStars < c;
+    });
+    document.getElementById('libraryUnlockTip').textContent = nextStarRarity
+      ? `越稀有解锁越难：R 3⭐、SR 6⭐、PR 9⭐、SSR 12⭐、HR 18⭐、UR 24⭐、CP 30⭐、LGR 36⭐；GP/SP 仅限家长奖励码或活动获取。当前攒到 ${totalStars}⭐，下一档可解锁 ${nextStarRarity}（需 ${getUnlockCost(nextStarRarity)}⭐）。`
+      : `越稀有解锁越难：R 3⭐、SR 6⭐、PR 9⭐、SSR 12⭐、HR 18⭐、UR 24⭐、CP 30⭐、LGR 36⭐；GP/SP 仅限家长奖励码或活动获取。星星已足够解锁全部星星卡，稀有 GP/SP 等待家长奖励吧！`;
+    document.getElementById('walletRBadge').textContent = 'R·SR·PR：3/6/9 ⭐';
+    document.getElementById('walletSRBadge').textContent = 'SSR·HR·UR：12/18/24 ⭐';
+    document.getElementById('walletSSRBadge').textContent = 'CP·LGR：30/36 ⭐ · GP/SP 家长码';
   }
 
   function renderLibraryContent() {
     const counts = getOwnedCardCounts();
-    const groups = {
-      R: CARD_POOL.filter((card) => card.rarity === 'R'),
-      SR: CARD_POOL.filter((card) => card.rarity === 'SR'),
-      SSR: CARD_POOL.filter((card) => card.rarity === 'SSR')
-    };
+    const groups = {};
+    RARITY_ORDER.forEach((r) => { groups[r] = CARD_POOL.filter((card) => card.rarity === r); });
     const container = document.getElementById('libraryContent');
 
     function renderSection(rarity, cards) {
@@ -3964,11 +4004,12 @@
     }
 
     if (libraryFilter === 'ALL') {
-      container.innerHTML = renderSection('R', groups.R) + renderSection('SR', groups.SR) + renderSection('SSR', groups.SSR);
+      container.innerHTML = RARITY_ORDER.map((r) => renderSection(r, groups[r])).join('');
       return;
     }
 
-    container.innerHTML = renderSection(libraryFilter, groups[libraryFilter]);
+    if (groups[libraryFilter]) container.innerHTML = renderSection(libraryFilter, groups[libraryFilter]);
+    else container.innerHTML = '';
   }
 
   function setLibraryFilter(filter, el) {
