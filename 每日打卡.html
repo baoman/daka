@@ -4123,9 +4123,9 @@
     document.getElementById('libraryUnlockTip').textContent = nextStarRarity
       ? `越稀有解锁越难：R 3⭐、SR 6⭐、PR 9⭐、SSR 12⭐、HR 18⭐、UR 24⭐、CP 30⭐、LGR 36⭐；GP/SP 仅限家长奖励码或活动获取。当前攒到 ${totalStars}⭐，下一档可解锁 ${nextStarRarity}（需 ${getUnlockCost(nextStarRarity)}⭐）。`
       : `越稀有解锁越难：R 3⭐、SR 6⭐、PR 9⭐、SSR 12⭐、HR 18⭐、UR 24⭐、CP 30⭐、LGR 36⭐；GP/SP 仅限家长奖励码或活动获取。星星已足够解锁全部星星卡，稀有 GP/SP 等待家长奖励吧！`;
-    // document.getElementById('walletRBadge').textContent = 'R·SR·PR：3/6/9 ⭐';
-    // document.getElementById('walletSRBadge').textContent = 'SSR·HR·UR：12/18/24 ⭐';
-    // document.getElementById('walletSSRBadge').textContent = 'CP·LGR：30/36 ⭐ · GP/SP 家长码';
+    document.getElementById('walletRBadge').textContent = 'R·SR·PR：3/6/9 ⭐';
+    document.getElementById('walletSRBadge').textContent = 'SSR·HR·UR：12/18/24 ⭐';
+    document.getElementById('walletSSRBadge').textContent = 'CP·LGR：30/36 ⭐ · GP/SP 家长码';
   }
 
   function renderLibraryContent() {
