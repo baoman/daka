@@ -293,14 +293,19 @@ Deno.serve(async (request) => {
     return reply({ ok: true });
   }
 
-  // ===== 家长查看打卡（按孩子） =====
+  // ===== 查看打卡（孩子可读自己 / 家长可读名下孩子） =====
   if (action === 'fetch_checkins') {
-    if (!isParent) return reply({ error: '请先登录家长账号。' }, 403);
     const childId = String(body.childId || '');
     if (!childId) return reply({ error: '请选择孩子。' }, 400);
-    const { data: child } = await admin.from('children').select('id').eq('id', childId).eq('owner_id', userId).maybeSingle();
-    if (!child) return reply({ ok: true, checkins: [] });
-    const days = Math.min(Number(body.days) || 7, 30);
+    // 孩子身份只能读自己；家长身份需属于该家庭
+    if (isParent) {
+      const { data: child } = await admin.from('children').select('id').eq('id', childId).eq('owner_id', userId).maybeSingle();
+      if (!child) return reply({ ok: true, checkins: [] });
+    } else {
+      const { data: child } = await admin.from('children').select('id').eq('id', childId).maybeSingle();
+      if (!child) return reply({ error: '孩子信息无效。' }, 400);
+    }
+    const days = Math.min(Number(body.days) || 30, 60);
     const since = new Date(); since.setDate(since.getDate() - days);
     const from = since.toISOString().slice(0, 10);
     const { data, error } = await admin.from('daily_checkins')

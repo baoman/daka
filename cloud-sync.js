@@ -296,6 +296,14 @@
     return checkins || [];
   }
 
+  // 孩子身份拉取自己全部打卡（从云端下行，保证换设备可见）
+  async function fetchMyCheckins(days = 45) {
+    const session = getChildSession();
+    if (!session?.childId) throw new Error('请先登录。');
+    const { checkins } = await invokeAsChild('fetch_checkins', { childId: session.childId, days });
+    return checkins || [];
+  }
+
   // ===== 孩子进度（云端持久化） =====
   async function loadChildProgress() {
     return invokeAsChild('load_progress');
@@ -354,6 +362,7 @@
     redeemRewardCodeAsChild,
     loadChildProgress,
     saveChildProgress,
+    fetchMyCheckins,
     // 奖励码 + 课表（通用）
     createRewardCode,
     listRewardCodes,

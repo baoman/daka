@@ -2564,7 +2564,7 @@
 
 <script src="cards-data.js?v=1.4.1"></script>
 <script src="cloud-config.js?v=2.0.1"></script>
-<script src="cloud-sync.js?v=3.1.0"></script>
+<script src="cloud-sync.js?v=3.1.1"></script>
 <script>
   // ===== V2.8：本地数据按 childId 隔离 =====
   function childSuffix() {
@@ -4090,19 +4090,39 @@
       const result = await window.SummerCloud.loadChildProgress();
       if (!result || !result.ok || !result.progress) return;
       const p = result.progress;
-      if (p.stars > 0 || (p.cards && p.cards.length > 0) || p.streak > 0) {
-        rewardState = {
-          stars: Number(p.stars) || 0,
-          ownedCards: p.cards || [],
-          streak: Number(p.streak) || 0,
-          dailyRewards: p.daily_rewards || {},
-          streakRewards: {},
-          redeemClaims: p.redeem_claims || {},
-          exchanges: p.exchanges || []
-        };
-        saveRewardState();
-        renderAll();
+      // 云端进度作为权威来源合并到本地；streakRewards 由本地打卡实时生成，保留本地以免被云端空对象覆盖
+      rewardState = {
+        stars: Number(p.stars) || 0,
+        ownedCards: p.cards || [],
+        streak: Number(p.streak) || 0,
+        dailyRewards: p.daily_rewards || {},
+        streakRewards: rewardState.streakRewards || {},
+        redeemClaims: p.redeem_claims || {},
+        exchanges: p.exchanges || []
+      };
+      saveRewardState();
+      renderAll();
+    } catch (e) {}
+  }
+
+  // 从云端拉取当前孩子的打卡记录并合并到本地（换设备可见）
+  async function syncCheckinsFromCloud() {
+    try {
+      if (!window.SummerCloud || !window.SummerCloud.fetchMyCheckins) return;
+      const remote = await window.SummerCloud.fetchMyCheckins(60);
+      if (!remote || !remote.length) return;
+      const local = loadChecks();
+      let changed = false;
+      for (const row of remote) {
+        const d = row.check_date;
+        const rc = (row.checks && typeof row.checks === 'object') ? row.checks : {};
+        const base = local[d] || {};
+        const keys = new Set([...Object.keys(base), ...Object.keys(rc)]);
+        let same = true;
+        for (const k of keys) { if (base[k] !== rc[k]) { same = false; break; } }
+        if (!same) { local[d] = Object.assign({}, base, rc); changed = true; }
       }
+      if (changed) { saveChecks(local); renderAll(); }
     } catch (e) {}
   }
 
@@ -4124,6 +4144,7 @@
     renderAll();
     // 异步从云端同步进度（不阻塞 UI）
     syncChildProgressFromCloud();
+    syncCheckinsFromCloud();
   }
 
   function doLogout() {
