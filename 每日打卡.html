@@ -2508,7 +2508,18 @@
   .redeem-dialog-form input:focus { outline:none; border-color:#9388ff; box-shadow:0 0 0 3px rgba(147,136,255,.16); }
   .redeem-dialog-hint { min-height:20px; margin:10px 2px 0; color:var(--sub); font-size:12px; line-height:1.5; }
   .redeem-dialog-hint.pending { color:#b36c16; }
-  @media (max-width: 480px) { .redeem-dialog-form { flex-direction:column; } .redeem-dialog-form .redeem-btn { min-height:44px; } }
+  @media (max-width: 480px) {
+    .redeem-dialog-form { flex-direction:column; }
+    .redeem-dialog-form .redeem-btn { min-height:44px; }
+    body { padding: 8px; }
+    .topbar { grid-template-columns: 1fr 60px; padding: 9px 10px; }
+    .topbar h1 { font-size: 16px; }
+    .stats-row { gap: 10px; }
+    .library-shell { padding: 10px; }
+    .owned-overview { padding: 12px; }
+    .card-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    .modal-box { padding: 22px 16px; }
+  }
 </style>
 </head>
 <body>
