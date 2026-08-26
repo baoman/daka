@@ -1498,6 +1498,28 @@
     transition: width .28s ease;
   }
 
+  .owned-overview {
+    margin-bottom: 14px;
+    padding: 12px 14px 16px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,.94), rgba(250,246,255,.94));
+    box-shadow: inset 0 0 0 1px rgba(170,145,243,.12);
+  }
+
+  .owned-overview .card-grid { margin-top: 10px; }
+
+  .owned-overview-empty {
+    margin-top: 10px;
+    padding: 14px 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.6);
+    color: var(--sub);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: inset 0 0 0 1px rgba(170,145,243,.1);
+  }
+
   .library-filter {
     display: flex;
     gap: 8px;
@@ -2707,6 +2729,14 @@
         <div class="meta" id="albumProgressText">0 / 0</div>
       </div>
       <div class="album-track"><div class="album-fill" id="albumProgressFill"></div></div>
+    </div>
+    <div class="owned-overview" id="ownedOverview">
+      <div class="album-progress-top">
+        <div class="title">✨ 已获得卡片总览</div>
+        <div class="meta" id="ownedOverviewMeta">0 种 · 0 张</div>
+      </div>
+      <div class="card-grid" id="libraryOwnedOverview"></div>
+      <div class="owned-overview-empty" id="ownedOverviewEmpty" style="display:none;">还没有已解锁的卡片。完成每日打卡攒星星，或让家长用奖励码 / 活动发放，就能解锁收藏册里的卡啦！</div>
     </div>
     <div class="library-guide">
       <div class="library-guide-title">解锁规则说明（按获取难度）</div>
@@ -4126,6 +4156,30 @@
     document.getElementById('walletRBadge').textContent = 'R·SR·PR：3/6/9 ⭐';
     document.getElementById('walletSRBadge').textContent = 'SSR·HR·UR：12/18/24 ⭐';
     document.getElementById('walletSSRBadge').textContent = 'CP·LGR：30/36 ⭐ · GP/SP 家长码';
+    renderLibraryOverview();
+  }
+
+  function renderLibraryOverview() {
+    const grid = document.getElementById('libraryOwnedOverview');
+    const empty = document.getElementById('ownedOverviewEmpty');
+    const meta = document.getElementById('ownedOverviewMeta');
+    if (!grid || !empty || !meta) return;
+    const counts = getOwnedCardCounts();
+    const ownedCards = CARD_POOL
+      .filter((card) => counts[card.id])
+      .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+    const kinds = ownedCards.length;
+    const total = getOwnedTotalCount();
+    meta.textContent = `${kinds} 种 · ${total} 张`;
+    if (!kinds) {
+      grid.innerHTML = '';
+      grid.style.display = 'none';
+      empty.style.display = '';
+      return;
+    }
+    grid.style.display = '';
+    empty.style.display = 'none';
+    grid.innerHTML = ownedCards.map((card) => buildCardTile(card, counts[card.id] || 0, 'library')).join('');
   }
 
   function renderLibraryContent() {
