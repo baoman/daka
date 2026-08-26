@@ -3286,7 +3286,7 @@
       // 连续打卡天数由打卡记录实时推导，落盘/上传前刷新，保证跨设备一致
       try { rewardState.streak = computeCheckinStreak(); } catch (e) {}
       localStorage.setItem(REWARD_KEY(), JSON.stringify(rewardState));
-      pushChildProgress();
+      scheduleAutoSave();
       markSchemaVersion();
     } catch (e) {
       // 写入失败时保留当前内存状态，避免页面白屏。
@@ -3908,7 +3908,7 @@
     }
 
     renderAll();
-    syncAllCheckins();
+    scheduleAutoSave(dayKey);
   }
 
   function renderLibrarySummary() {
@@ -4166,6 +4166,61 @@
     } catch (e) {}
   }
 
+  // ===== 自动云端保存（每次本地数据变化即上云，无需手动同步） =====
+  let _autoSaveTimer = null;
+  let _autoSaveDays = new Set();
+  let _autoSaveDirty = false;   // 进度/奖励/星级/兑换是否有变化待上传
+  let _isBooting = true;        // 启动阶段的拉取/合并期间不触发上云，避免覆盖未合并数据
+
+  // 标记某天打卡（或奖励进度）待上传——任何本地数据变化都调用它
+  function scheduleAutoSave(dayKey) {
+    if (_isBooting) return; // 启动阶段（云端拉取合并期间）不触发上云
+    if (dayKey) { markCloudPending(dayKey); _autoSaveDays.add(dayKey); }
+    _autoSaveDirty = true;
+    clearTimeout(_autoSaveTimer);
+    _autoSaveTimer = setTimeout(runAutoSave, 350);
+  }
+
+  // 增量上传单天打卡（轻量、快速）
+  async function syncOneCheckin(dayKey) {
+    const checks = loadChecks();
+    if (!checks[dayKey]) { clearCloudPending([dayKey]); return; }
+    await window.SummerCloud.syncCheckinAsChild(cloudSnapshot(dayKey, checks));
+    clearCloudPending([dayKey]);
+  }
+
+  // 统一把“变化的打卡 + 奖励进度”推上云；任一失败自动重试，确保最终一致
+  async function runAutoSave() {
+    const days = [..._autoSaveDays];
+    _autoSaveDays = new Set();
+    const progressDirty = _autoSaveDirty;
+    _autoSaveDirty = false;
+    try {
+      if (!window.SummerCloud || !window.SummerCloud.isConfigured()) {
+        // 云端未就绪，还原待传标记，等下次操作再试
+        days.forEach((d) => _autoSaveDays.add(d));
+        if (progressDirty) _autoSaveDirty = true;
+        return;
+      }
+      let failed = false;
+      for (const d of days) {
+        try { await syncOneCheckin(d); }
+        catch (e) { _autoSaveDays.add(d); failed = true; }
+      }
+      if (progressDirty) {
+        try { await window.SummerCloud.saveChildProgress(rewardState); }
+        catch (e) { _autoSaveDirty = true; failed = true; }
+      }
+      if (failed) {
+        clearTimeout(_autoSaveTimer);
+        _autoSaveTimer = setTimeout(runAutoSave, 2500); // 2.5s 后自动重试
+      }
+    } catch (e) {
+      days.forEach((d) => _autoSaveDays.add(d));
+      if (progressDirty) _autoSaveDirty = true;
+    }
+  }
+
   function pushChildProgress() {
     clearTimeout(_cloudSyncTimer);
     _cloudSyncTimer = setTimeout(async () => {
@@ -4177,6 +4232,7 @@
   }
 
   async function initApp() {
+    _isBooting = true;
     rewardState = loadRewardState();
     const s = window.SummerCloud.getChildSession();
     if (s) document.getElementById('welcomeName').textContent = '👋 ' + s.childName + '，开始打卡吧！';
@@ -4188,12 +4244,15 @@
     // 3) 拉进度/星级；
     // 4) 拉取课表（决定每天的任务列表）——这一步之前“连续打卡天数/待办”可能因任务列表缺失而算错；
     // 5) 课表就位后重算连续打卡天数并上传，保证跨设备一致。
+    // 注意：启动阶段 _isBooting=true，scheduleAutoSave 被抑制，避免把未合并的本地数据提前覆盖云端；
+    //       下列显式推送在 _isBooting 期间照常执行。
     try { await syncAllCheckins(); } catch (e) {}
     try { await syncCheckinsFromCloud(); } catch (e) {}
     try { await syncChildProgressFromCloud(); } catch (e) {}
     try { await refreshScheduleOverrides(); } catch (e) {}
     try { rewardState.streak = computeCheckinStreak(); } catch (e) {}
     try { pushChildProgress(); } catch (e) {}
+    _isBooting = false;
   }
 
   function doLogout() {
