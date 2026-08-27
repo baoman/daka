@@ -90,19 +90,6 @@
     z-index: 1;
   }
 
-  .mini-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 9px;
-    border-radius: 999px;
-    background: rgba(255,255,255,.18);
-    color: white;
-    font-size: 10px;
-    font-weight: 800;
-    margin-bottom: 4px;
-  }
-
   .topbar h1 {
     color: white;
     font-size: 20px;
@@ -2474,7 +2461,6 @@
     body { padding: 12px; }
     .topbar { grid-template-columns: 1fr 68px; padding: 10px 12px; }
     .topbar h1 { font-size: 18px; }
-    .mini-badge { font-size: 9px; }
     .stats-row { grid-template-columns: 1fr; }
     .week-strip { grid-template-columns: repeat(7, minmax(58px, 1fr)); overflow-x: auto; }
     .day-pill { min-width: 58px; }
@@ -2537,7 +2523,6 @@
 <div class="app" id="mainApp" style="display:none">
   <section class="topbar">
     <div class="topbar-copy">
-      <div class="mini-badge">🥚 蛋仔派对学习乐园 · V2.0</div>
       <h1>暑假学习 · 蛋仔打卡乐园</h1>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <span style="font-size:13px;color:#7c6f95" id="welcomeName"></span>
@@ -2547,7 +2532,7 @@
         <span class="redeem-status" id="redeemStatus">输入兑换码，领取惊喜奖励</span>
         <button class="redeem-btn primary" type="button" id="redeemOpenBtn" onclick="openRedeemModal()">输入兑换码</button>
         <button class="redeem-btn" type="button" id="syncCloudBtn" onclick="manualSyncToCloud()">同步到云端</button>
-        <button class="redeem-btn primary" type="button" onclick="location.href='家务打卡.html'">🧹 家务打卡</button>
+        <button class="redeem-btn primary" type="button" onclick="location.href='家务打卡.html'">家务打卡</button>
         <span class="redeem-status" id="syncStatus" style="color:#0a7d3b"></span>
       </div>
     </div>
@@ -4105,7 +4090,8 @@
 
     if (checked) {
       if (!reward.firstTaskAwarded) {
-        const firstTask = reward.tasks ? reward.tasks.find(t => progress.dayChecks[t.id]) : progress.tasks.find(t => progress.dayChecks[t.id]);
+        const dayProgress = getDayProgress(dayKey, checks);
+        const firstTask = dayProgress.tasks.find(t => dayProgress.dayChecks[t.id]);
         const name = (window.SummerCloud && window.SummerCloud.getChildSession ? window.SummerCloud.getChildSession() : {})?.childName || '';
         const quote = reward.firstQuote || pickQuote({ name, task: firstTask?.name, subject: firstTask?.subject, period: firstTask?.period });
         reward.firstTaskAwarded = true;
