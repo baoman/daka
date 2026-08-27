@@ -327,6 +327,11 @@
     if (session?.childId) return invokeAsChild('list_chore_logs', params || {});
     return invokeAsAdmin('list_chore_logs', params || {});
   }
+  async function getChoreTotal(params) {
+    const session = getChildSession();
+    if (session?.childId) return invokeAsChild('chore_total', params || {});
+    return invokeAsAdmin('chore_total', params || {});
+  }
   async function deleteChoreLog(id) {
     return invokeAsAdmin('delete_chore_log', { id });
   }
@@ -412,6 +417,7 @@
     addChoreLog,
     addChoreLogAsAdmin,
     listChoreLogs,
+    getChoreTotal,
     deleteChoreLog,
     listChildren,
     createChild,

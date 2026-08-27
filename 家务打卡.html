@@ -34,9 +34,18 @@
   /* 卡片 */
   .card-box{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
   .card-box h3{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:6px}
-  /* 表单 */
-  select{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:16px;font-family:inherit;background:#fff;color:var(--ink);margin-bottom:10px;box-sizing:border-box}
-  .note-input{margin-bottom:12px}
+  /* 任务勾选列表 */
+  .task-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;max-height:340px;overflow:auto}
+  .task-item{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:15px}
+  .task-item:hover{border-color:var(--violet)}
+  .task-item input[type=checkbox]{width:20px;height:20px;accent-color:var(--violet);flex-shrink:0;cursor:pointer}
+  .task-item .tname{flex:1;font-weight:600}
+  .task-item .tamt{color:var(--green);font-weight:800;font-size:13px;white-space:nowrap}
+  .qty-ctrl{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex-shrink:0}
+  .qty-ctrl button{width:30px;height:30px;background:#f6f3fb;color:var(--violet);font-size:18px;font-weight:800;border-radius:0;line-height:1}
+  .qty-ctrl button:active{background:#ece8fa}
+  .qty-ctrl input{width:36px;height:30px;border:0;border-left:1px solid var(--line);border-right:1px solid var(--line);border-radius:0;text-align:center;font-size:14px;font-weight:700;padding:0;margin:0;-moz-appearance:textfield}
+  .qty-ctrl input::-webkit-outer-spin-button,.qty-ctrl input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .complete-btn{width:100%;padding:14px;background:linear-gradient(135deg,#7fd0ff,#9f80ff);color:#fff;font-size:16px;font-weight:800}
   .complete-btn:disabled{opacity:.5;cursor:not-allowed}
   .msg{min-height:20px;font-size:13px;margin-top:10px;text-align:center}
@@ -84,24 +93,20 @@
       <button class="link-btn danger" onclick="doLogout()">退出</button>
     </div>
   </div>
-  <h1>🧹 今日家务</h1>
-  <p class="sub">做完一件家务，就点一下「完成」，奖励自动记下来～</p>
-
   <div class="card-box">
-    <h3>✅ 完成一项家务</h3>
-    <select id="taskSelect"><option value="">加载中…</option></select>
-    <input id="choreNote" class="note-input" placeholder="备注（可选）：比如「把阳台也扫了」">
-    <button class="complete-btn" id="completeBtn" onclick="completeChore()">完成 ✓ +<span id="btnAmt"></span></button>
-    <div class="msg" id="choreMsg"></div>
-  </div>
-
-  <div class="card-box">
-    <h3>💰 我的奖励汇总</h3>
+    <h3>💰 我的存钱罐</h3>
     <div class="summary">
       <div class="box"><div class="label">今日合计</div><div class="val" id="sumToday">¥0</div></div>
       <div class="box"><div class="label">本周合计</div><div class="val" id="sumWeek">¥0</div></div>
       <div class="box"><div class="label">累计合计</div><div class="val" id="sumTotal">¥0</div></div>
     </div>
+  </div>
+  <div class="card-box">
+    <h3>✅ 今日完成家务</h3>
+    <p class="sub" style="margin:4px 0 12px">勾选做完的家务并设置次数，点「完成」一次全记下～</p>
+    <div class="task-list" id="taskList"><div class="empty">加载中…</div></div>
+    <button class="complete-btn" id="completeBtn" onclick="completeChore()"><span id="btnLabel">完成选中</span> +<span id="btnAmt"></span></button>
+    <div class="msg" id="choreMsg"></div>
   </div>
 
   <div class="card-box">
@@ -111,7 +116,7 @@
 </div>
 
 <script src="cloud-config.js?v=2.0.1"></script>
-<script src="cloud-sync.js?v=3.3.0"></script>
+<script src="cloud-sync.js?v=3.4.0"></script>
 <script>
   const $ = (id) => document.getElementById(id);
   function fmtMoney(n){ n = Number(n)||0; return '¥' + (Number.isInteger(n) ? n : n.toFixed(2)); }
@@ -153,31 +158,68 @@
   }
 
   function renderTaskOptions(){
-    const sel=$('taskSelect');
+    const list=$('taskList');
     if(!TASKS.length){
-      sel.innerHTML='<option value="">家长还没配置家务任务</option>';
+      list.innerHTML='<div class="empty">家长还没配置家务任务</div>';
       $('completeBtn').disabled=true;
       $('btnAmt').textContent='';
       return;
     }
-    sel.innerHTML = TASKS.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}（${fmtMoney(t.amount)}）</option>`).join('');
+    list.innerHTML = TASKS.map((t,i)=>`<div class="task-item" data-i="${i}">
+      <input type="checkbox" value="${escapeHtml(t.id)}" data-amount="${t.amount}">
+      <span class="tname">${escapeHtml(t.name)}</span>
+      <span class="tamt">${fmtMoney(t.amount)}/次</span>
+      <span class="qty-ctrl">
+        <button type="button" onclick="stepQty(${i},-1)">−</button>
+        <input type="number" min="1" max="1000" value="1" inputmode="numeric" data-qty>
+        <button type="button" onclick="stepQty(${i},1)">＋</button>
+      </span>
+    </div>`).join('');
     $('completeBtn').disabled=false;
     syncBtnAmt();
+    list.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.addEventListener('change', syncBtnAmt));
+    list.querySelectorAll('input[data-qty]').forEach(inp=>inp.addEventListener('input', syncBtnAmt));
+  }
+  function stepQty(i, d){
+    const row=document.querySelector(`#taskList .task-item[data-i="${i}"]`);
+    if(!row) return;
+    const inp=row.querySelector('input[data-qty]');
+    let v=Math.max(1, Math.min(1000, (parseInt(inp.value,10)||1)+d));
+    inp.value=v;
+    syncBtnAmt();
+  }
+  function selectedTasks(){
+    return Array.from(document.querySelectorAll('#taskList .task-item')).filter(row=>row.querySelector('input[type=checkbox]').checked).map(row=>{
+      const cb=row.querySelector('input[type=checkbox]');
+      const t = TASKS.find(x=>x.id===cb.value);
+      const qty=Math.max(1, parseInt(row.querySelector('input[data-qty]').value,10)||1);
+      return t ? { id:t.id, name:t.name, amount:Number(cb.dataset.amount)||0, qty } : null;
+    }).filter(Boolean);
   }
   function syncBtnAmt(){
-    const t = TASKS.find(x=>x.id===$('taskSelect').value);
-    $('btnAmt').textContent = t ? fmtMoney(t.amount) : '';
+    const sel = selectedTasks();
+    const total = sel.reduce((s,t)=>s+ t.amount*t.qty,0);
+    const cnt = sel.reduce((s,t)=>s+t.qty,0);
+    $('btnAmt').textContent = sel.length ? fmtMoney(total) : '';
+    $('btnLabel').textContent = sel.length ? `完成选中（${cnt} 次）` : '完成选中';
   }
-  $('taskSelect').addEventListener('change', syncBtnAmt);
 
   async function completeChore(){
-    const sel=$('taskSelect'); const t = TASKS.find(x=>x.id===sel.value);
-    if(!t){ $('choreMsg').className='msg err'; $('choreMsg').textContent='请先选择一项家务。'; return; }
+    const sel = selectedTasks();
+    if(!sel.length){ $('choreMsg').className='msg err'; $('choreMsg').textContent='请先勾选要完成的家务。'; return; }
+    const total = sel.reduce((s,t)=>s+ t.amount*t.qty,0);
     const btn=$('completeBtn'); btn.disabled=true;
     try{
-      await window.SummerCloud.addChoreLog({ taskId:t.id, taskName:t.name, amount:t.amount, logDate:todayStr(), note:$('choreNote').value.trim() });
-      $('choreMsg').className='msg ok'; $('choreMsg').textContent=`完成「${t.name}」，奖励 ${fmtMoney(t.amount)} 已记下！🎉`;
-      $('choreNote').value='';
+      for(const t of sel){
+        await window.SummerCloud.addChoreLog({ taskId:t.id, taskName:t.name, amount:t.amount, qty:t.qty, logDate:todayStr(), note:'' });
+      }
+      $('choreMsg').className='msg ok'; $('choreMsg').textContent=`完成 ${sel.reduce((s,t)=>s+t.qty,0)} 次家务，共奖励 ${fmtMoney(total)} 已记下！🎉`;
+      // 清空勾选、次数归 1
+      document.querySelectorAll('#taskList .task-item').forEach(row=>{
+        row.querySelector('input[type=checkbox]').checked=false;
+        row.querySelector('input[data-qty]').value=1;
+      });
+      syncBtnAmt();
       // 刷新记录与汇总
       const r = await window.SummerCloud.listChoreLogs({ days: 120 });
       render(r.logs||[]);
@@ -199,7 +241,7 @@
     const list=$('todayList');
     if(!todayLogs.length){ list.innerHTML='<div class="empty">今天还没有完成家务哦</div>'; return; }
     const sorted=[...todayLogs].sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
-    list.innerHTML = sorted.map(l=>`<div class="log-item"><div><div class="name">${escapeHtml(l.task_name)}</div><div class="time">${fmtTime(l.created_at)}${l.note?(' · '+escapeHtml(l.note)):''}</div></div><div class="amt">+${fmtMoney(l.amount)}</div></div>`).join('');
+    list.innerHTML = sorted.map(l=>`<div class="log-item"><div><div class="name">${escapeHtml(l.task_name)}${(l.qty&&l.qty>1)?` <span class="time">×${l.qty}次</span>`:''}</div><div class="time">${fmtTime(l.created_at)}${l.note?(' · '+escapeHtml(l.note)):''}</div></div><div class="amt">+${fmtMoney(l.amount)}</div></div>`).join('');
   }
   function fmtTime(iso){ if(!iso) return ''; const d=new Date(iso); return d.toTimeString().slice(0,5); }
   function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }

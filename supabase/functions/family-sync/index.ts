@@ -403,14 +403,16 @@ Deno.serve(async (request) => {
     const { data: child } = await admin.from('children').select('id').eq('id', childId).maybeSingle();
     if (!child) return reply({ error: '孩子信息无效。' }, 400);
     const taskName = String(body.taskName || '').trim();
-    const amount = Math.round(Number(body.amount) * 100) / 100;
+    const qty = Math.max(1, Math.min(Math.floor(Number(body.qty) || 1), 1000));
+    const unitAmount = Math.round(Number(body.amount) * 100) / 100;
+    const amount = Math.round(unitAmount * qty * 100) / 100;
     const note = String(body.note || '').trim().slice(0, 50);
     const logDate = validScheduleDate(body.logDate) ? String(body.logDate) : new Date().toISOString().slice(0, 10);
     if (!taskName || taskName.length > 20) return reply({ error: '任务名称无效。' }, 400);
-    if (!(amount > 0) || amount > 999) return reply({ error: '奖励金额无效。' }, 400);
+    if (!(unitAmount > 0) || unitAmount > 999) return reply({ error: '奖励金额无效。' }, 400);
     const { data, error } = await admin.from('chore_logs').insert({
       owner_id: FAMILY_OWNER_ID, child_id: childId, task_id: body.taskId || null,
-      task_name: taskName, amount, log_date: logDate, note
+      task_name: taskName, amount, qty, log_date: logDate, note
     }).select('*').single();
     if (error) return reply({ error: error.message }, 400);
     return reply({ ok: true, log: data });
@@ -440,6 +442,26 @@ Deno.serve(async (request) => {
     const { error } = await admin.from('chore_logs').delete().eq('id', id).eq('owner_id', userId);
     if (error) return reply({ error: error.message }, 400);
     return reply({ ok: true });
+  }
+  if (action === 'chore_total') {
+    // 数据库侧直接给出累计合计金额（只取 amount 单列聚合，轻量快速）
+    let query = admin.from('chore_logs').select('amount');
+    if (isParent) {
+      const { data: children } = await admin.from('children').select('id').eq('owner_id', userId);
+      const ids = (children || []).map((c: { id: string }) => c.id);
+      if (!ids.length) return reply({ ok: true, total: 0 });
+      query = query.in('child_id', ids);
+    } else {
+      const childId = String(body.childId || '');
+      if (!childId) return reply({ error: '请先登录。' }, 400);
+      query = query.eq('child_id', childId);
+    }
+    const { data, error } = await query;
+    if (error) return reply({ error: error.message }, 400);
+    let total = 0;
+    for (const row of (data || []) as { amount?: unknown }[]) total += Number(row.amount || 0);
+    total = Math.round(total * 100) / 100;
+    return reply({ ok: true, total });
   }
 
   return reply({ error: '未知操作。' }, 400);

@@ -132,7 +132,7 @@
   </div>
 </div>
 
-<script src="cloud-config.js?v=2.0.1"></script><script src="cloud-sync.js?v=3.3.0"></script>
+<script src="cloud-config.js?v=2.0.1"></script><script src="cloud-sync.js?v=3.4.0"></script>
 <script>
 let rows=[];let activeDate='';let scheduleOverrides={};let currentSchedule=[];
 const PERIODS=[['morning','上午'],['afternoon','下午'],['evening','晚上']];
@@ -231,11 +231,20 @@ function renderChoreTaskRows(){
     <button class="danger" type="button" onclick="removeChoreRow(${i})">删除</button>
   </div>`).join('');
 }
+function captureRowsRaw(){
+  const rows=document.querySelectorAll('#choreTaskList .chore-row');
+  return Array.from(rows).map(row=>({
+    name: row.querySelector('[data-field="name"]').value.trim(),
+    amount: Number(row.querySelector('[data-field="amount"]').value) || 0
+  }));
+}
 function addChoreRow(){
+  choreTasks = captureRowsRaw();
   choreTasks.push({ name:'', amount:2 });
   renderChoreTaskRows();
 }
 function removeChoreRow(i){
+  choreTasks = captureRowsRaw();
   choreTasks.splice(i,1);
   renderChoreTaskRows();
 }
@@ -303,13 +312,13 @@ function renderChoreLogs(){
   document.getElementById('choreSumToday').textContent=fmtMoney2(sumToday);
   document.getElementById('choreSumWeek').textContent=fmtMoney2(sumWeek);
   document.getElementById('choreSumTotal').textContent=fmtMoney2(sumTotal);
-  document.getElementById('choreTodayCnt').textContent=todayLogs.length+' 项';
-  document.getElementById('choreTotalCnt').textContent=logs.length+' 项';
+  document.getElementById('choreTodayCnt').textContent=todayLogs.reduce((s,l)=>s+(Number(l.qty)||1),0)+' 次';
+  document.getElementById('choreTotalCnt').textContent=logs.reduce((s,l)=>s+(Number(l.qty)||1),0)+' 次';
   const list=document.getElementById('choreLogList');
   if(!logs.length){ list.innerHTML='<div class="empty">暂无家务记录。</div>'; return; }
   const sorted=[...logs].sort((a,b)=>(b.log_date||'').localeCompare(a.log_date||'')||(b.created_at||'').localeCompare(a.created_at||''));
   list.innerHTML = sorted.map(l=>`<div class="chore-log-item">
-    <div><div class="name">${escapeHtml(l.task_name)}${sel?'' : ' · <span style="color:var(--violet)">'+escapeHtml(nameOf(l.child_id))+'</span>'}</div><div class="time">${escapeHtml(l.log_date||'')}${l.note?(' · '+escapeHtml(l.note)):''}</div></div>
+    <div><div class="name">${escapeHtml(l.task_name)}${(l.qty&&l.qty>1)?` <span style="color:var(--muted)">×${l.qty}次</span>`:''}${sel?'':' · <span style="color:var(--violet)">'+escapeHtml(nameOf(l.child_id))+'</span>'}</div><div class="time">${escapeHtml(l.log_date||'')}${l.note?(' · '+escapeHtml(l.note)):''}</div></div>
     <div style="display:flex;align-items:center;gap:8px"><span class="amt">+${fmtMoney2(l.amount)}</span><button class="plain" type="button" onclick="deleteChoreLogItem('${l.id}')">删除</button></div>
   </div>`).join('');
 }

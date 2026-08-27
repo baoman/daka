@@ -50,13 +50,13 @@
 
   .topbar {
     background: linear-gradient(135deg, #ff9a56 0%, #ffb347 30%, #ff7eb6 60%, #a78bfa 100%);
-    border-radius: 20px;
+    border-radius: 22px;
     box-shadow: 0 18px 38px rgba(255, 140, 40, .18);
-    padding: 9px 14px;
+    padding: 0;
     display: grid;
-    grid-template-columns: 1fr 74px;
-    gap: 8px;
-    align-items: center;
+    grid-template-columns: 1fr 128px;
+    gap: 14px;
+    align-items: stretch;
     margin-bottom: 10px;
     overflow: hidden;
     position: relative;
@@ -84,23 +84,13 @@
     bottom: -28px;
   }
 
+  .topbar-copy {
+    padding: 14px 16px;
+  }
+
   .topbar-copy,
   .topbar-art {
     position: relative;
-    z-index: 1;
-  }
-
-  .mini-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 9px;
-    border-radius: 999px;
-    background: rgba(255,255,255,.18);
-    color: white;
-    font-size: 10px;
-    font-weight: 800;
-    margin-bottom: 4px;
   }
 
   .topbar h1 {
@@ -110,11 +100,69 @@
     letter-spacing: .6px;
   }
 
+  .topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0;
+  }
+  .topbar-user #welcomeName {
+    color: #fff7ea;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .topbar-user button {
+    border: 1px solid rgba(255,255,255,.7);
+    background: rgba(255,255,255,.16);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 4px 12px;
+    border-radius: 999px;
+    transition: background .15s ease;
+  }
+  .topbar-user button:hover { background: rgba(255,255,255,.32); }
+
   .topbar-art {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
+    align-self: stretch;
   }
+
+  .topbar-avatar {
+    width: 128px;
+    height: 100%;
+    min-height: 84px;
+    border-radius: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,.26);
+  }
+  .topbar-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .topbar-avatar.is-hidden { display: none; }
+  .topbar.no-avatar { grid-template-columns: 1fr; }
+  .topbar.no-avatar .topbar-art { display: none; }
+
+  /* 头像稀有度光晕 */
+  .topbar-avatar.av-r  { box-shadow: inset 0 0 0 2px rgba(255,255,255,.4), 0 0 14px rgba(95,168,255,.55),  0 12px 22px rgba(99,71,162,.28); }
+  .topbar-avatar.av-sr { box-shadow: inset 0 0 0 2px rgba(255,255,255,.4), 0 0 16px rgba(155,99,255,.6), 0 12px 22px rgba(99,71,162,.28); }
+  .topbar-avatar.av-pr { box-shadow: inset 0 0 0 2px rgba(255,255,255,.4), 0 0 16px rgba(232,74,156,.6), 0 12px 22px rgba(99,71,162,.28); }
+  .topbar-avatar.av-ssr{ box-shadow: inset 0 0 0 2px rgba(255,255,255,.5), 0 0 20px rgba(243,190,68,.75), 0 12px 22px rgba(99,71,162,.28); }
+  .topbar-avatar.av-hr { box-shadow: inset 0 0 0 2px rgba(255,255,255,.45), 0 0 18px rgba(160,50,200,.7), 0 12px 22px rgba(99,71,162,.28); }
+  .topbar-avatar.av-ur { box-shadow: inset 0 0 0 2px rgba(255,255,255,.45), 0 0 20px rgba(120,60,200,.7), 0 12px 22px rgba(99,71,162,.28); }
+  .topbar-avatar.av-cp { box-shadow: inset 0 0 0 2px rgba(255,255,255,.45), 0 0 18px rgba(220,80,180,.7), 0 12px 22px rgba(99,71,162,.28); }
+  .topbar-avatar.av-lgr{ box-shadow: inset 0 0 0 2px rgba(255,255,255,.5), 0 0 22px rgba(218,165,32,.8), 0 12px 22px rgba(99,71,162,.28); }
+  .topbar-avatar.av-gp { box-shadow: inset 0 0 0 2px rgba(255,255,255,.55), 0 0 24px rgba(218,165,32,.9), 0 12px 22px rgba(99,71,162,.28); }
+  .topbar-avatar.av-sp { box-shadow: inset 0 0 0 2px rgba(255,255,255,.5), 0 0 24px rgba(255,80,30,.85), 0 12px 22px rgba(99,71,162,.28); }
 
   .egg-mini {
     width: 100%;
@@ -124,7 +172,7 @@
 
   .stats-row {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 8px;
     margin-bottom: 10px;
   }
@@ -2472,9 +2520,9 @@
 
   @media (max-width: 760px) {
     body { padding: 12px; }
-    .topbar { grid-template-columns: 1fr 68px; padding: 10px 12px; }
+    .topbar { grid-template-columns: 1fr 64px; padding: 10px 12px; }
     .topbar h1 { font-size: 18px; }
-    .mini-badge { font-size: 9px; }
+    .topbar-avatar { width: 64px; height: 100%; min-height: 60px; border-radius: 16px; }
     .stats-row { grid-template-columns: 1fr; }
     .week-strip { grid-template-columns: repeat(7, minmax(58px, 1fr)); overflow-x: auto; }
     .day-pill { min-width: 58px; }
@@ -2499,6 +2547,11 @@
   .redeem-status.pending { color:#b36c16; }
   .redeem-btn { border:1px solid var(--border); background:#fff; color:var(--text); border-radius:10px; padding:7px 10px; font:inherit; font-size:12px; cursor:pointer; }
   .redeem-btn.primary { background:#6c63ff; border-color:#6c63ff; color:#fff; }
+  /* topbar 渐变背景上的状态文字 & 按钮调亮 */
+  .topbar .redeem-status { color: rgba(255,255,255,.92); text-shadow: 0 1px 2px rgba(120,60,0,.22); }
+  .topbar .redeem-status.success { color: #d9ffe6; }
+  .topbar .redeem-status.pending { color: #ffe9c2; }
+  .topbar #syncStatus { color: #d9ffe6 !important; }
   .redeem-dialog-copy { padding:16px; border-radius:18px; background:linear-gradient(135deg, #fff1f8, #f1edff 54%, #e9f8ff); box-shadow:inset 0 0 0 1px rgba(170,145,243,.12); }
   .redeem-dialog-icon { width:54px; height:54px; display:grid; place-items:center; border-radius:18px; background:rgba(255,255,255,.76); font-size:27px; box-shadow:0 10px 20px rgba(136,98,210,.12); }
   .redeem-dialog-copy h3 { margin:12px 0 4px; font-size:20px; font-weight:900; }
@@ -2512,8 +2565,9 @@
     .redeem-dialog-form { flex-direction:column; }
     .redeem-dialog-form .redeem-btn { min-height:44px; }
     body { padding: 8px; }
-    .topbar { grid-template-columns: 1fr 60px; padding: 9px 10px; }
+    .topbar { grid-template-columns: 1fr 54px; padding: 9px 10px; }
     .topbar h1 { font-size: 16px; }
+    .topbar-avatar { width: 54px; height: 100%; min-height: 52px; border-radius: 14px; }
     .stats-row { gap: 10px; }
     .library-shell { padding: 10px; }
     .owned-overview { padding: 12px; }
@@ -2537,32 +2591,20 @@
 <div class="app" id="mainApp" style="display:none">
   <section class="topbar">
     <div class="topbar-copy">
-      <div class="mini-badge">🥚 蛋仔派对学习乐园 · V2.0</div>
       <h1>暑假学习 · 蛋仔打卡乐园</h1>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="font-size:13px;color:#7c6f95" id="welcomeName"></span>
-        <button onclick="doLogout()" style="border:0;background:transparent;color:#b42318;font-size:14px;font-weight:bold;cursor:pointer;padding:2px 6px">退出登录</button>
+      <div class="topbar-user">
+        <span id="welcomeName"></span>
+        <button onclick="doLogout()">退出登录</button>
       </div>
       <div class="redeem-toolbar">
         <span class="redeem-status" id="redeemStatus">输入兑换码，领取惊喜奖励</span>
         <button class="redeem-btn primary" type="button" id="redeemOpenBtn" onclick="openRedeemModal()">输入兑换码</button>
         <button class="redeem-btn" type="button" id="syncCloudBtn" onclick="manualSyncToCloud()">同步到云端</button>
-        <button class="redeem-btn primary" type="button" onclick="location.href='家务打卡.html'">🧹 家务打卡</button>
         <span class="redeem-status" id="syncStatus" style="color:#0a7d3b"></span>
       </div>
     </div>
     <div class="topbar-art">
-      <svg class="egg-mini" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <ellipse cx="50" cy="60" rx="40" ry="50" fill="#ffe8cc"/>
-        <ellipse cx="38" cy="42" rx="12" ry="8" fill="rgba(255,255,255,.45)"/>
-        <circle cx="42" cy="50" r="5" fill="#4a3a2a"/>
-        <circle cx="44" cy="48" r="1.5" fill="#fff"/>
-        <circle cx="60" cy="50" r="5" fill="#4a3a2a"/>
-        <circle cx="62" cy="48" r="1.5" fill="#fff"/>
-        <path d="M44 64c3 3 9 3 12 0" fill="none" stroke="#e07040" stroke-width="3" stroke-linecap="round"/>
-        <ellipse cx="54" cy="52" rx="5" ry="3.5" fill="#ffb0a0" opacity=".6"/>
-        <ellipse cx="46" cy="52" rx="5" ry="3.5" fill="#ffb0a0" opacity=".6"/>
-      </svg>
+      <div class="topbar-avatar is-hidden" id="topbarAvatar"></div>
     </div>
   </section>
 
@@ -2581,6 +2623,11 @@
       <div class="stat-top"><span class="stat-label">我的收藏册</span><span class="stat-icon">📔</span></div>
       <div class="stat-main"><span class="stat-value" id="ownedCards">0</span><span class="stat-unit">张</span></div>
       <div class="stat-desc" id="ownedHint">点击直接进入我的收藏册。</div>
+    </button>
+    <button class="stat-card clickable" type="button" onclick="location.href='家务打卡.html'">
+      <div class="stat-top"><span class="stat-label">我的存钱罐</span><span class="stat-icon">🐷</span></div>
+      <div class="stat-main"><span class="stat-value" id="choreTotal">¥0</span><span class="stat-unit"></span></div>
+      <div class="stat-desc">点击这里，查看其他任务奖励情况。</div>
     </button>
   </section>
 
@@ -2784,7 +2831,7 @@
 
 <script src="cards-data.js?v=1.4.1"></script>
 <script src="cloud-config.js?v=2.0.1"></script>
-<script src="cloud-sync.js?v=3.3.0"></script>
+<script src="cloud-sync.js?v=3.4.0"></script>
 <script>
   // ===== V2.8：本地数据按 childId 隔离 =====
   function childSuffix() {
@@ -3825,6 +3872,48 @@
       : '继续攒星星，收藏册越稀有越要更多星星解锁。';
     document.getElementById('checkinHint').textContent = checkinStreak > 0 ? `已连打 ${checkinStreak} 天。` : '今天开始记第 1 天。';
     document.getElementById('ownedHint').textContent = owned > 0 ? `已解锁 ${getUnlockedKindsCount()} / ${CARD_POOL.length} 种，点这里直接进收藏册。` : '点这里直接进收藏册。';
+    renderTopbarAvatar();
+  }
+
+  function fmtChoreMoney(n) {
+    n = Number(n) || 0;
+    return Number.isInteger(n) ? String(n) : n.toFixed(2);
+  }
+
+  async function loadChoreTotal() {
+    try {
+      if (!window.SummerCloud || !window.SummerCloud.getChoreTotal) return;
+      const r = await window.SummerCloud.getChoreTotal();
+      const total = Number(r.total || 0);
+      const el = document.getElementById('choreTotal');
+      if (el) el.textContent = '¥' + fmtChoreMoney(total);
+    } catch (e) { /* 静默失败，保留默认 ¥0 */ }
+  }
+
+  function renderTopbarAvatar() {
+    const avatar = document.getElementById('topbarAvatar');
+    const topbar = avatar ? avatar.closest('.topbar') : null;
+    if (!avatar) return;
+    const counts = getOwnedCardCounts();
+    // 找出已获得卡片中稀有度等级最高的一张（RARITY_ORDER 从低到高，从尾部扫描；同稀有度取第一个）
+    let best = null;
+    for (let i = RARITY_ORDER.length - 1; i >= 0; i--) {
+      const rarity = RARITY_ORDER[i];
+      const owned = CARD_POOL.filter((card) => card.rarity === rarity && counts[card.id]);
+      if (owned.length) { best = owned[0]; break; }
+    }
+
+    if (!best) {
+      avatar.classList.add('is-hidden');
+      avatar.innerHTML = '';
+      if (topbar) topbar.classList.add('no-avatar');
+      return;
+    }
+    avatar.classList.remove('is-hidden');
+    if (topbar) topbar.classList.remove('no-avatar');
+    const cls = rarityClass(best.rarity);
+    avatar.className = 'topbar-avatar av-' + cls;
+    avatar.innerHTML = `<img src="cards/${best.id}.webp" alt="${best.name}" title="${best.rarity} · ${best.name}">`;
   }
 
   function renderWeekStrip() {
@@ -4500,6 +4589,8 @@
     if (s) document.getElementById('welcomeName').textContent = '👋 ' + s.childName + '，开始打卡吧！';
     syncRewardFromChecks();
     renderAll();
+    // 存钱罐总额独立加载，立即并行发起，不排在同步链末尾等待
+    loadChoreTotal();
     // 同步顺序：
     // 1) 先把本地（含昨天及更早）打卡推上云，避免待会儿拉取时被云端旧数据覆盖；
     // 2) 再拉云端打卡合并到本地；
