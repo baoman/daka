@@ -34,6 +34,10 @@
   /* 卡片 */
   .card-box{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
   .card-box h3{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:6px}
+  /* 补打日期 */
+  .date-row{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+  .date-row label{font-size:13px;color:var(--muted);white-space:nowrap;font-weight:600}
+  .date-row input[type=date]{flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:12px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink);margin:0;text-align:center;box-sizing:border-box;-webkit-appearance:none}
   /* 任务勾选列表 */
   .task-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;max-height:340px;overflow:auto}
   .task-item{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:15px}
@@ -102,15 +106,19 @@
     </div>
   </div>
   <div class="card-box">
-    <h3>✅ 今日完成家务</h3>
-    <p class="sub" style="margin:4px 0 12px">勾选做完的家务并设置次数，点「完成」一次全记下～</p>
+    <h3>✅ 完成家务</h3>
+    <div class="date-row">
+      <label>日期</label>
+      <input type="date" id="choreDate">
+    </div>
+    <p class="sub" style="margin:4px 0 12px">忘记打卡了？可以选过去的日期补打哦～</p>
     <div class="task-list" id="taskList"><div class="empty">加载中…</div></div>
     <button class="complete-btn" id="completeBtn" onclick="completeChore()"><span id="btnLabel">完成选中</span> +<span id="btnAmt"></span></button>
     <div class="msg" id="choreMsg"></div>
   </div>
 
   <div class="card-box">
-    <h3>📋 今日记录</h3>
+    <h3 id="logTitle">📋 今日记录</h3>
     <div id="todayList"><div class="empty">今天还没有完成家务哦</div></div>
   </div>
 </div>
@@ -120,8 +128,10 @@
 <script>
   const $ = (id) => document.getElementById(id);
   function fmtMoney(n){ n = Number(n)||0; return '¥' + (Number.isInteger(n) ? n : n.toFixed(2)); }
-  function todayStr(){ return new Date().toISOString().slice(0,10); }
-  function weekMonday(){ const x=new Date(); x.setHours(0,0,0,0); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x.toISOString().slice(0,10); }
+  function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function weekMonday(){ const x=new Date(); x.setHours(0,0,0,0); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); }
+  function setChoreDate(d){ const el=$('choreDate'); if(el) el.value=d; }
+  function getChoreDate(){ const v=$('choreDate').value; const today=todayStr(); return (v && v<=today)?v:today; }
 
   async function doLogin(){
     const btn=$('loginBtn'); btn.disabled=true; btn.textContent='登录中…'; $('loginError').textContent='';
@@ -139,22 +149,25 @@
     location.reload();
   }
 
+  let LOGS = [];
   let TASKS = [];
   async function loadData(){
     const me = window.SummerCloud.getChildSession();
     $('welcomeName').textContent = me?.childName || '我';
+    setChoreDate(todayStr());
+    const dateEl = $('choreDate');
+    if(dateEl){ dateEl.max = todayStr(); dateEl.addEventListener('change', renderLogList); }
     try{
       const res = await window.SummerCloud.getChoreTasksPublic();
       TASKS = res.tasks || [];
     }catch(e){ TASKS = []; }
     renderTaskOptions();
     // 拉取最近 120 天记录用于汇总
-    let logs = [];
     try{
       const r = await window.SummerCloud.listChoreLogs({ days: 120 });
-      logs = r.logs || [];
-    }catch(e){ logs = []; }
-    render(logs);
+      LOGS = r.logs || [];
+    }catch(e){ LOGS = []; }
+    render();
   }
 
   function renderTaskOptions(){
@@ -208,10 +221,11 @@
     const sel = selectedTasks();
     if(!sel.length){ $('choreMsg').className='msg err'; $('choreMsg').textContent='请先勾选要完成的家务。'; return; }
     const total = sel.reduce((s,t)=>s+ t.amount*t.qty,0);
+    const logDate = getChoreDate();
     const btn=$('completeBtn'); btn.disabled=true;
     try{
       for(const t of sel){
-        await window.SummerCloud.addChoreLog({ taskId:t.id, taskName:t.name, amount:t.amount, qty:t.qty, logDate:todayStr(), note:'' });
+        await window.SummerCloud.addChoreLog({ taskId:t.id, taskName:t.name, amount:t.amount, qty:t.qty, logDate, note:'' });
       }
       $('choreMsg').className='msg ok'; $('choreMsg').textContent=`完成 ${sel.reduce((s,t)=>s+t.qty,0)} 次家务，共奖励 ${fmtMoney(total)} 已记下！🎉`;
       // 清空勾选、次数归 1
@@ -222,25 +236,33 @@
       syncBtnAmt();
       // 刷新记录与汇总
       const r = await window.SummerCloud.listChoreLogs({ days: 120 });
-      render(r.logs||[]);
+      LOGS = r.logs||[];
+      render();
     }catch(e){ $('choreMsg').className='msg err'; $('choreMsg').textContent=e.message||'记录失败，请重试。'; }
     finally{ btn.disabled=false; }
   }
 
-  function render(logs){
-    const today=todayStr(), wk=weekMonday();
-    const todayLogs = logs.filter(l=>l.log_date===today);
-    const weekLogs  = logs.filter(l=>l.log_date>=wk);
-    const sumToday = todayLogs.reduce((s,l)=>s+Number(l.amount),0);
-    const sumWeek  = weekLogs.reduce((s,l)=>s+Number(l.amount),0);
-    const sumTotal = logs.reduce((s,l)=>s+Number(l.amount),0);
+  function render(){
+    const wk=weekMonday();
+    const sumToday = LOGS.filter(l=>l.log_date===todayStr()).reduce((s,l)=>s+Number(l.amount),0);
+    const sumWeek  = LOGS.filter(l=>l.log_date>=wk).reduce((s,l)=>s+Number(l.amount),0);
+    const sumTotal = LOGS.reduce((s,l)=>s+Number(l.amount),0);
     $('sumToday').textContent=fmtMoney(sumToday);
     $('sumWeek').textContent=fmtMoney(sumWeek);
     $('sumTotal').textContent=fmtMoney(sumTotal);
-    // 今日记录（按时间倒序）
+    renderLogList();
+  }
+
+  function renderLogList(){
+    const selDate = getChoreDate();
+    const today = todayStr();
     const list=$('todayList');
-    if(!todayLogs.length){ list.innerHTML='<div class="empty">今天还没有完成家务哦</div>'; return; }
-    const sorted=[...todayLogs].sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
+    const title=$('logTitle');
+    const isToday = selDate === today;
+    title.textContent = isToday ? '📋 今日记录' : `📋 ${selDate} 记录`;
+    const dayLogs = LOGS.filter(l=>l.log_date===selDate);
+    if(!dayLogs.length){ list.innerHTML= isToday ? '<div class="empty">今天还没有完成家务哦</div>' : `<div class="empty">${selDate} 暂无记录</div>`; return; }
+    const sorted=[...dayLogs].sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
     list.innerHTML = sorted.map(l=>`<div class="log-item"><div><div class="name">${escapeHtml(l.task_name)}${(l.qty&&l.qty>1)?` <span class="time">×${l.qty}次</span>`:''}</div><div class="time">${fmtTime(l.created_at)}${l.note?(' · '+escapeHtml(l.note)):''}</div></div><div class="amt">+${fmtMoney(l.amount)}</div></div>`).join('');
   }
   function fmtTime(iso){ if(!iso) return ''; const d=new Date(iso); return d.toTimeString().slice(0,5); }
