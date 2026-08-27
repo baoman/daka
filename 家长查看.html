@@ -43,7 +43,7 @@
   .kid-code{font-size:11px}
   .kid-code b{font-size:13px;letter-spacing:1px;margin:0 1px}
   .kid-code button{font-size:10px;padding:3px 7px}
-}.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--violet);color:#fff;padding:10px 22px;border-radius:12px;font-size:14px;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.15);opacity:0;transition:opacity .25s;pointer-events:none}.toast.show{opacity:1}.modal-overlay{position:fixed;inset:0;background:rgba(48,42,66,.46);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}.modal-box{background:#fff;border-radius:20px;padding:28px 24px 22px;max-width:380px;width:100%;box-shadow:0 26px 60px rgba(48,42,66,.22)}.preview{margin-top:14px;padding:14px 16px;border-radius:14px;background:var(--violet-soft);border:1px solid var(--violet);box-shadow:0 4px 14px rgba(108,99,255,.12)}.preview strong{display:block;color:var(--violet);font-size:14px;margin-bottom:6px}.preview ul{margin:8px 0 0;padding-left:18px;color:var(--ink);font-size:13px;line-height:1.8}.preview.flash{animation:previewFlash .9s ease}.preview .hint-empty{color:var(--muted);font-size:13px}@keyframes previewFlash{0%{box-shadow:0 0 0 0 rgba(108,99,255,.45)}100%{box-shadow:0 4px 14px rgba(108,99,255,.12)}}</style>
+}.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--violet);color:#fff;padding:10px 22px;border-radius:12px;font-size:14px;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.15);opacity:0;transition:opacity .25s;pointer-events:none}.toast.show{opacity:1}.modal-overlay{position:fixed;inset:0;background:rgba(48,42,66,.46);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}.modal-box{background:#fff;border-radius:20px;padding:28px 24px 22px;max-width:380px;width:100%;box-shadow:0 26px 60px rgba(48,42,66,.22)}.preview{margin-top:14px;padding:14px 16px;border-radius:14px;background:var(--violet-soft);border:1px solid var(--violet);box-shadow:0 4px 14px rgba(108,99,255,.12)}.preview strong{display:block;color:var(--violet);font-size:14px;margin-bottom:6px}.preview ul{margin:8px 0 0;padding-left:18px;color:var(--ink);font-size:13px;line-height:1.8}.preview.flash{animation:previewFlash .9s ease}.preview .hint-empty{color:var(--muted);font-size:13px}@keyframes previewFlash{0%{box-shadow:0 0 0 0 rgba(108,99,255,.45)}100%{box-shadow:0 4px 14px rgba(108,99,255,.12)}}.chore-row{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.chore-row input[data-field="name"]{flex:1}.chore-amt{display:flex;align-items:center;gap:6px;width:140px;flex-shrink:0}.chore-amt input{width:92px;text-align:right}.chore-amt span{color:var(--muted);font-size:13px}.chore-log-item{display:flex;align-items:center;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--line);font-size:14px;gap:10px}.chore-log-item:last-child{border-bottom:0}.chore-log-item .name{font-weight:600}.chore-log-item .time{color:var(--muted);font-size:11px;margin-top:2px}.chore-log-item .amt{color:var(--green);font-weight:800}@media(max-width:480px){.chore-row{flex-wrap:wrap}.chore-amt{width:100%}.chore-amt input{width:auto;flex:1}}</style>
 </head>
 <body>
 <main class="page">
@@ -55,6 +55,7 @@
   <button class="sidebar-btn active" type="button" data-module="overview" onclick="switchModule('overview')">打卡进度</button>
   <button class="sidebar-btn" type="button" data-module="rewards" onclick="switchModule('rewards')">奖励发放</button>
   <button class="sidebar-btn" type="button" data-module="schedule" onclick="switchModule('schedule')">课表调整</button>
+  <button class="sidebar-btn" type="button" data-module="chores" onclick="switchModule('chores')">家务任务</button>
   
 </aside>
 
@@ -92,6 +93,28 @@
     <section class="card manager"><div class="schedule-date-row"><div class="field"><label for="scheduleDate">安排日期</label><input id="scheduleDate" type="date" onchange="loadScheduleDate()"></div><div class="schedule-tools"><button class="secondary" type="button" onclick="previewSchedule()">小朋友端预览</button></div></div><div class="schedule-status" id="scheduleStatus"></div><div class="schedule-board" id="scheduleBoard"></div><div class="schedule-foot"><button class="secondary" type="button" onclick="copyScheduleToDates()">复制到其他日期</button><button class="primary" type="button" onclick="saveSchedule()">保存当天调整</button><button class="primary" type="button" onclick="setDefaultSchedule()">将当前课表设为默认课表</button></div><div class="preview" id="schedulePreview" hidden></div></section>
   </section>
 
+  <section class="module-panel" data-panel="chores">
+    <div class="module-intro"><div><h2>家务任务</h2><p>配置家务/生活任务及其奖励金额，孩子在「家务打卡」里完成并累计金额。</p></div></div>
+    <div class="module-note">保存后立即生效：孩子端「家务打卡」的下拉选择里会显示「任务名（金额）」。金额建议 1–10 元，最多可配 50 项。</div>
+    <section class="card manager">
+      <div class="split"><h3>任务与金额配置</h3><button class="primary" type="button" onclick="addChoreRow()">+ 添加任务</button></div>
+      <div id="choreTaskList" style="margin-top:12px"><div class="empty">正在读取…</div></div>
+      <div class="split" style="margin-top:14px">
+        <span class="code-status" id="choreSaveStatus" style="margin-top:0"></span>
+        <button class="primary" type="button" onclick="saveChoreTasks()">保存全部任务</button>
+      </div>
+    </section>
+    <section class="card">
+      <div class="split"><h3>家务记录与汇总</h3><div><select id="choreLogChild" onchange="renderChoreLogs()"><option value="">-- 全部孩子 --</option></select></div></div>
+      <div class="metrics" style="margin-top:14px">
+        <div class="card metric"><div class="label">今日合计</div><div class="value" id="choreSumToday">¥0</div><div class="hint" id="choreTodayCnt">0 项</div></div>
+        <div class="card metric"><div class="label">本周合计</div><div class="value" id="choreSumWeek">¥0</div><div class="hint">含今天</div></div>
+        <div class="card metric"><div class="label">累计合计</div><div class="value" id="choreSumTotal">¥0</div><div class="hint" id="choreTotalCnt">0 项</div></div>
+      </div>
+      <div class="reward-list" id="choreLogList"><div class="empty">正在读取记录…</div></div>
+    </section>
+  </section>
+
 </section>
 </div>
 </main>
@@ -109,7 +132,7 @@
   </div>
 </div>
 
-<script src="cloud-config.js?v=2.0.1"></script><script src="cloud-sync.js?v=3.1.0"></script>
+<script src="cloud-config.js?v=2.0.1"></script><script src="cloud-sync.js?v=3.3.0"></script>
 <script>
 let rows=[];let activeDate='';let scheduleOverrides={};let currentSchedule=[];
 const PERIODS=[['morning','上午'],['afternoon','下午'],['evening','晚上']];
@@ -121,7 +144,7 @@ function escapeHtml(v){return String(v||'').replace(/[&<>"']/g,ch=>({'&':'&amp;'
 function rowFor(k){return rows.find(row=>row.check_date===k&&(!selectedChild||row.child_id===selectedChild))}function valuesOf(row){return row?.checks?.values||(row?.checks||{})}function tasksOf(row){return Array.isArray(row?.checks?.tasks)?row.checks.tasks:[]}
 
 function showApp(){document.getElementById('appLayout').style.display='flex';document.getElementById('headerActions').style.display=''}
-function switchModule(name){document.querySelectorAll('[data-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.panel===name));document.querySelectorAll('[data-module]').forEach(tab=>tab.classList.toggle('active',tab.dataset.module===name));if(name==='schedule'&&!currentSchedule.length)loadScheduleDate();if(name==='kids')loadChildren()}
+function switchModule(name){document.querySelectorAll('[data-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.panel===name));document.querySelectorAll('[data-module]').forEach(tab=>tab.classList.toggle('active',tab.dataset.module===name));if(name==='schedule'&&!currentSchedule.length)loadScheduleDate();if(name==='kids')loadChildren();if(name==='chores')loadChores()}
 function rewardLabel(r){return r?.type==='card'?`${r.rarity} 卡 · ${r.cardId}`:`${r?.stars||0} 颗星星`}
 function rewardState(i){if(i.revoked_at)return ['已撤销','off'];if(Number(i.used_count)>=Number(i.max_uses))return ['已领取','claimed'];if(new Date(i.expires_at).getTime()<=Date.now())return ['已过期','off'];return ['待领取','pending']}
 
@@ -189,6 +212,114 @@ async function submitPassword() {
       document.getElementById('pwdError').textContent = '密码不正确，请重试。';
     }
   }
+}
+
+// ===== 家务任务配置 + 记录汇总 =====
+let choreTasks = [];
+let choreLogs = [];
+let choreKids = [];
+function fmtMoney2(n){ n=Number(n)||0; return '¥'+(Number.isInteger(n)?n:n.toFixed(2)); }
+function todayStr2(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function weekMonday2(){ const x=new Date(); x.setHours(0,0,0,0); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); }
+
+function renderChoreTaskRows(){
+  const list=document.getElementById('choreTaskList');
+  if(!choreTasks.length){ list.innerHTML='<div class="empty">还没有家务任务，点击「添加任务」开始配置。</div>'; return; }
+  list.innerHTML = choreTasks.map((t,i)=>`<div class="chore-row" data-i="${i}">
+    <input data-field="name" maxlength="20" placeholder="任务名，如：倒垃圾" value="${escapeHtml(t.name)}">
+    <div class="chore-amt"><input data-field="amount" type="number" min="0.1" max="999" step="0.1" inputmode="decimal" placeholder="金额" value="${t.amount}"><span>元</span></div>
+    <button class="danger" type="button" onclick="removeChoreRow(${i})">删除</button>
+  </div>`).join('');
+}
+function addChoreRow(){
+  choreTasks.push({ name:'', amount:2 });
+  renderChoreTaskRows();
+}
+function removeChoreRow(i){
+  choreTasks.splice(i,1);
+  renderChoreTaskRows();
+}
+function captureChoreRows(){
+  const rows=document.querySelectorAll('#choreTaskList .chore-row');
+  const out=[]; const seen=new Set();
+  for(const row of rows){
+    const name=row.querySelector('[data-field="name"]').value.trim();
+    let amount=Number(row.querySelector('[data-field="amount"]').value);
+    if(name && !seen.has(name)){ seen.add(name); out.push({ name, amount: amount>0?amount:0 }); }
+  }
+  return out;
+}
+async function saveChoreTasks(){
+  const n=document.getElementById('choreSaveStatus');
+  choreTasks=captureChoreRows();
+  for(const t of choreTasks){
+    if(!t.name){ n.textContent='请填写每项任务名称（或删除空行）。'; return; }
+    if(!(t.amount>0)||t.amount>999){ n.textContent=`任务「${t.name}」金额需为 0.1–999 元。`; return; }
+  }
+  n.textContent='正在保存…';
+  try{
+    await SummerCloud.saveChoreTasks(choreTasks.map(t=>({ name:t.name, amount:t.amount })));
+    n.textContent='已保存，孩子端「家务打卡」立即生效。';
+    renderChoreTaskRows();
+  }catch(e){ n.textContent=e.message||'保存失败，请重试。'; }
+}
+async function loadChores(){
+  // 任务配置
+  try{
+    const r = await SummerCloud.getChoreTasks();
+    choreTasks = (r.tasks||[]).map(t=>({ name:t.name, amount:Number(t.amount) }));
+  }catch(e){ choreTasks=[]; }
+  renderChoreTaskRows();
+  // 孩子列表（用于记录筛选 + 汇总姓名映射）
+  try{
+    const r = await SummerCloud.listChildren();
+    choreKids = r.children||[];
+    const sel=document.getElementById('choreLogChild');
+    const cur=sel.value;
+    sel.innerHTML='<option value="">-- 全部孩子 --</option>'+choreKids.map(k=>`<option value="${k.id}">${escapeHtml(k.name)}</option>`).join('');
+    if(cur) sel.value=cur;
+  }catch(e){ choreKids=[]; }
+  await loadChoreLogs();
+}
+async function loadChoreLogs(){
+  const list=document.getElementById('choreLogList');
+  list.innerHTML='<div class="empty">正在读取记录…</div>';
+  try{
+    const r = await SummerCloud.listChoreLogs({ days: 120 });
+    choreLogs = r.logs||[];
+  }catch(e){ choreLogs=[]; }
+  renderChoreLogs();
+}
+function renderChoreLogs(){
+  const sel=document.getElementById('choreLogChild').value;
+  const logs = sel ? choreLogs.filter(l=>l.child_id===sel) : choreLogs;
+  const today=todayStr2(), wk=weekMonday2();
+  const nameOf = (id) => { const k=choreKids.find(c=>c.id===id); return k?k.name:id; };
+  const todayLogs = logs.filter(l=>l.log_date===today);
+  const weekLogs  = logs.filter(l=>l.log_date>=wk);
+  const sumToday = todayLogs.reduce((s,l)=>s+Number(l.amount),0);
+  const sumWeek  = weekLogs.reduce((s,l)=>s+Number(l.amount),0);
+  const sumTotal = logs.reduce((s,l)=>s+Number(l.amount),0);
+  document.getElementById('choreSumToday').textContent=fmtMoney2(sumToday);
+  document.getElementById('choreSumWeek').textContent=fmtMoney2(sumWeek);
+  document.getElementById('choreSumTotal').textContent=fmtMoney2(sumTotal);
+  document.getElementById('choreTodayCnt').textContent=todayLogs.length+' 项';
+  document.getElementById('choreTotalCnt').textContent=logs.length+' 项';
+  const list=document.getElementById('choreLogList');
+  if(!logs.length){ list.innerHTML='<div class="empty">暂无家务记录。</div>'; return; }
+  const sorted=[...logs].sort((a,b)=>(b.log_date||'').localeCompare(a.log_date||'')||(b.created_at||'').localeCompare(a.created_at||''));
+  list.innerHTML = sorted.map(l=>`<div class="chore-log-item">
+    <div><div class="name">${escapeHtml(l.task_name)}${sel?'' : ' · <span style="color:var(--violet)">'+escapeHtml(nameOf(l.child_id))+'</span>'}</div><div class="time">${escapeHtml(l.log_date||'')}${l.note?(' · '+escapeHtml(l.note)):''}</div></div>
+    <div style="display:flex;align-items:center;gap:8px"><span class="amt">+${fmtMoney2(l.amount)}</span><button class="plain" type="button" onclick="deleteChoreLogItem('${l.id}')">删除</button></div>
+  </div>`).join('');
+}
+async function deleteChoreLogItem(id){
+  if(!window.confirm('确认删除这条家务记录吗？')) return;
+  try{
+    await SummerCloud.deleteChoreLog(id);
+    choreLogs = choreLogs.filter(l=>l.id!==id);
+    renderChoreLogs();
+  }catch(e){ alert(e.message||'删除失败'); }
 }
 
 (async function init(){

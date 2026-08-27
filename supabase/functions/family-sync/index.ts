@@ -366,5 +366,81 @@ Deno.serve(async (request) => {
     return reply({ ok: true });
   }
 
+  // ===== 家务任务（家长配置 + 孩子记录 + 汇总）=====
+  // 家务任务为家庭级共享配置：家长可配置，孩子也可读取（用于下拉选择）。
+  if (action === 'get_chore_tasks') {
+    const { data, error } = await admin.from('chore_tasks').select('*').eq('owner_id', FAMILY_OWNER_ID).order('sort_order').order('created_at');
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true, tasks: data || [] });
+  }
+  if (action === 'save_chore_tasks') {
+    if (!isParent) return reply({ error: '请先登录家长账号。' }, 403);
+    const raw = Array.isArray(body.tasks) ? body.tasks : [];
+    if (raw.length > 50) return reply({ error: '任务数量过多（最多 50 个）。' }, 400);
+    const seen = new Set<string>();
+    const tasks: Record<string, unknown>[] = [];
+    for (const it of raw) {
+      const t = it as Record<string, unknown>;
+      const name = String(t?.name || '').trim();
+      const amount = Math.round(Number(t?.amount) * 100) / 100;
+      if (!name || name.length > 20) return reply({ error: '任务名称需 1-20 个字。' }, 400);
+      if (!(amount > 0) || amount > 999) return reply({ error: '奖励金额需为 0.1-999 元。' }, 400);
+      if (seen.has(name)) return reply({ error: `任务"${name}"重复，请合并或改名。` }, 400);
+      seen.add(name);
+      tasks.push({ owner_id: FAMILY_OWNER_ID, name, amount, sort_order: tasks.length });
+    }
+    const { error: delErr } = await admin.from('chore_tasks').delete().eq('owner_id', FAMILY_OWNER_ID);
+    if (delErr) return reply({ error: delErr.message }, 400);
+    if (tasks.length) {
+      const { error: insErr } = await admin.from('chore_tasks').insert(tasks);
+      if (insErr) return reply({ error: insErr.message }, 400);
+    }
+    return reply({ ok: true });
+  }
+  if (action === 'add_chore_log') {
+    const childId = String(body.childId || '');
+    if (!childId) return reply({ error: '请先登录。' }, 400);
+    const { data: child } = await admin.from('children').select('id').eq('id', childId).maybeSingle();
+    if (!child) return reply({ error: '孩子信息无效。' }, 400);
+    const taskName = String(body.taskName || '').trim();
+    const amount = Math.round(Number(body.amount) * 100) / 100;
+    const note = String(body.note || '').trim().slice(0, 50);
+    const logDate = validScheduleDate(body.logDate) ? String(body.logDate) : new Date().toISOString().slice(0, 10);
+    if (!taskName || taskName.length > 20) return reply({ error: '任务名称无效。' }, 400);
+    if (!(amount > 0) || amount > 999) return reply({ error: '奖励金额无效。' }, 400);
+    const { data, error } = await admin.from('chore_logs').insert({
+      owner_id: FAMILY_OWNER_ID, child_id: childId, task_id: body.taskId || null,
+      task_name: taskName, amount, log_date: logDate, note
+    }).select('*').single();
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true, log: data });
+  }
+  if (action === 'list_chore_logs') {
+    const days = Math.min(Number(body.days) || 30, 120);
+    const since = new Date(); since.setDate(since.getDate() - days + 1);
+    const from = since.toISOString().slice(0, 10);
+    let query = admin.from('chore_logs').select('*').gte('log_date', from);
+    if (isParent) {
+      const { data: children } = await admin.from('children').select('id').eq('owner_id', userId);
+      const ids = (children || []).map((c: { id: string }) => c.id);
+      if (!ids.length) return reply({ ok: true, logs: [] });
+      query = query.in('child_id', ids);
+    } else {
+      const childId = String(body.childId || '');
+      if (!childId) return reply({ error: '请先登录。' }, 400);
+      query = query.eq('child_id', childId);
+    }
+    const { data, error } = await query.order('log_date', { ascending: false }).order('created_at', { ascending: false });
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true, logs: data || [] });
+  }
+  if (action === 'delete_chore_log') {
+    if (!isParent) return reply({ error: '请先登录家长账号。' }, 403);
+    const id = String(body.id || '');
+    const { error } = await admin.from('chore_logs').delete().eq('id', id).eq('owner_id', userId);
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true });
+  }
+
   return reply({ error: '未知操作。' }, 400);
 });

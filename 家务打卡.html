@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>家务打卡 · 蛋仔乐园</title>
+<style>
+  :root{
+    --ink:#302b42;--muted:#7d7691;--line:#e7e1ee;--violet:#6c63ff;--violet-soft:#f0efff;
+    --green:#2e8a57;--green-soft:#eaf8ef;--amber:#b76d14;--amber-soft:#fff5e6;--red:#b42318;--bg:#fbf9fd;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.5}
+  .page{width:min(640px,calc(100% - 24px));margin:0 auto;padding:18px 0 56px}
+  /* 登录 */
+  #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(180deg,#fffaff,#fff7fd 52%,#f7fbff)}
+  #loginScreen .card{text-align:center;max-width:320px;padding:40px 30px;background:rgba(255,255,255,.92);border-radius:24px;box-shadow:0 18px 40px rgba(136,98,210,.12)}
+  #loginScreen .emoji{font-size:48px;margin-bottom:12px}
+  #loginScreen h2{font-size:22px;font-weight:900;color:#4a3a66;margin:0 0 8px}
+  #loginScreen p{color:#7c6f95;font-size:13px;margin:0 0 24px}
+  input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:16px;margin-bottom:10px;text-align:center;box-sizing:border-box;font-family:inherit}
+  button{font:inherit;cursor:pointer;border:0;border-radius:12px}
+  .btn-primary{width:100%;padding:12px;background:var(--violet);color:#fff;font-size:16px;font-weight:700}
+  #loginError{color:var(--red);font-size:12px;margin:12px 0 0;min-height:18px}
+  /* 顶栏 */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+  .topbar .who{font-size:13px;color:var(--muted)}
+  .topbar .who b{color:var(--ink);font-size:15px}
+  .topbar .acts{display:flex;gap:8px;flex-shrink:0}
+  .link-btn{background:transparent;color:var(--violet);font-size:13px;font-weight:600;padding:6px 8px}
+  .link-btn.danger{color:var(--red)}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  /* 卡片 */
+  .card-box{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+  .card-box h3{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:6px}
+  /* 表单 */
+  select{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:16px;font-family:inherit;background:#fff;color:var(--ink);margin-bottom:10px;box-sizing:border-box}
+  .note-input{margin-bottom:12px}
+  .complete-btn{width:100%;padding:14px;background:linear-gradient(135deg,#7fd0ff,#9f80ff);color:#fff;font-size:16px;font-weight:800}
+  .complete-btn:disabled{opacity:.5;cursor:not-allowed}
+  .msg{min-height:20px;font-size:13px;margin-top:10px;text-align:center}
+  .msg.ok{color:var(--green)} .msg.err{color:var(--red)}
+  /* 汇总 */
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
+  .summary .box{background:var(--violet-soft);border-radius:14px;padding:12px 6px}
+  .summary .label{font-size:12px;color:var(--muted)}
+  .summary .val{font-size:20px;font-weight:800;color:var(--violet);margin-top:4px}
+  /* 记录列表 */
+  .log-item{display:flex;align-items:center;justify-content:space-between;padding:11px 4px;border-bottom:1px solid var(--line);font-size:14px}
+  .log-item:last-child{border-bottom:0}
+  .log-item .name{font-weight:600}
+  .log-item .amt{color:var(--green);font-weight:800;font-size:15px}
+  .log-item .time{color:var(--muted);font-size:11px}
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:18px 6px}
+  .empty.tip{background:var(--amber-soft);color:var(--amber);border-radius:12px;padding:14px;line-height:1.7}
+  @media(max-width:480px){
+    .page{padding:14px 0 40px}
+    h1{font-size:18px}
+    .summary .val{font-size:18px}
+    .complete-btn{padding:13px}
+  }
+</style>
+</head>
+<body>
+<div id="loginScreen">
+  <div class="card">
+    <div class="emoji">🧹</div>
+    <h2>家务打卡乐园</h2>
+    <p>请输入你的姓名和验证码</p>
+    <input id="loginName" placeholder="姓名" autocomplete="name">
+    <input id="loginPwd" inputmode="numeric" maxlength="6" placeholder="验证码（问家长要）" style="letter-spacing:3px">
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">登录</button>
+    <p id="loginError"></p>
+    <p style="margin-top:16px"><a class="link-btn" href="每日打卡.html">← 回到学习打卡</a></p>
+  </div>
+</div>
+
+<div class="page" id="mainApp" style="display:none">
+  <div class="topbar">
+    <div class="who">👋 <b id="welcomeName"></b> 的家务</div>
+    <div class="acts">
+      <button class="link-btn" onclick="location.href='每日打卡.html'">学习打卡</button>
+      <button class="link-btn danger" onclick="doLogout()">退出</button>
+    </div>
+  </div>
+  <h1>🧹 今日家务</h1>
+  <p class="sub">做完一件家务，就点一下「完成」，奖励自动记下来～</p>
+
+  <div class="card-box">
+    <h3>✅ 完成一项家务</h3>
+    <select id="taskSelect"><option value="">加载中…</option></select>
+    <input id="choreNote" class="note-input" placeholder="备注（可选）：比如「把阳台也扫了」">
+    <button class="complete-btn" id="completeBtn" onclick="completeChore()">完成 ✓ +<span id="btnAmt"></span></button>
+    <div class="msg" id="choreMsg"></div>
+  </div>
+
+  <div class="card-box">
+    <h3>💰 我的奖励汇总</h3>
+    <div class="summary">
+      <div class="box"><div class="label">今日合计</div><div class="val" id="sumToday">¥0</div></div>
+      <div class="box"><div class="label">本周合计</div><div class="val" id="sumWeek">¥0</div></div>
+      <div class="box"><div class="label">累计合计</div><div class="val" id="sumTotal">¥0</div></div>
+    </div>
+  </div>
+
+  <div class="card-box">
+    <h3>📋 今日记录</h3>
+    <div id="todayList"><div class="empty">今天还没有完成家务哦</div></div>
+  </div>
+</div>
+
+<script src="cloud-config.js?v=2.0.1"></script>
+<script src="cloud-sync.js?v=3.3.0"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  function fmtMoney(n){ n = Number(n)||0; return '¥' + (Number.isInteger(n) ? n : n.toFixed(2)); }
+  function todayStr(){ return new Date().toISOString().slice(0,10); }
+  function weekMonday(){ const x=new Date(); x.setHours(0,0,0,0); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x.toISOString().slice(0,10); }
+
+  async function doLogin(){
+    const btn=$('loginBtn'); btn.disabled=true; btn.textContent='登录中…'; $('loginError').textContent='';
+    try{
+      const name=$('loginName').value.trim(), code=$('loginPwd').value.trim();
+      if(!name||!code) throw new Error('请输入姓名和验证码。');
+      await window.SummerCloud.childLogin(name, code);
+      $('loginScreen').style.display='none'; $('mainApp').style.display='block';
+      await loadData();
+    }catch(e){ $('loginError').textContent=e.message||'登录失败，请重试。'; }
+    finally{ btn.disabled=false; btn.textContent='登录'; }
+  }
+  function doLogout(){
+    window.SummerCloud.childLogout();
+    location.reload();
+  }
+
+  let TASKS = [];
+  async function loadData(){
+    const me = window.SummerCloud.getChildSession();
+    $('welcomeName').textContent = me?.childName || '我';
+    try{
+      const res = await window.SummerCloud.getChoreTasksPublic();
+      TASKS = res.tasks || [];
+    }catch(e){ TASKS = []; }
+    renderTaskOptions();
+    // 拉取最近 120 天记录用于汇总
+    let logs = [];
+    try{
+      const r = await window.SummerCloud.listChoreLogs({ days: 120 });
+      logs = r.logs || [];
+    }catch(e){ logs = []; }
+    render(logs);
+  }
+
+  function renderTaskOptions(){
+    const sel=$('taskSelect');
+    if(!TASKS.length){
+      sel.innerHTML='<option value="">家长还没配置家务任务</option>';
+      $('completeBtn').disabled=true;
+      $('btnAmt').textContent='';
+      return;
+    }
+    sel.innerHTML = TASKS.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}（${fmtMoney(t.amount)}）</option>`).join('');
+    $('completeBtn').disabled=false;
+    syncBtnAmt();
+  }
+  function syncBtnAmt(){
+    const t = TASKS.find(x=>x.id===$('taskSelect').value);
+    $('btnAmt').textContent = t ? fmtMoney(t.amount) : '';
+  }
+  $('taskSelect').addEventListener('change', syncBtnAmt);
+
+  async function completeChore(){
+    const sel=$('taskSelect'); const t = TASKS.find(x=>x.id===sel.value);
+    if(!t){ $('choreMsg').className='msg err'; $('choreMsg').textContent='请先选择一项家务。'; return; }
+    const btn=$('completeBtn'); btn.disabled=true;
+    try{
+      await window.SummerCloud.addChoreLog({ taskId:t.id, taskName:t.name, amount:t.amount, logDate:todayStr(), note:$('choreNote').value.trim() });
+      $('choreMsg').className='msg ok'; $('choreMsg').textContent=`完成「${t.name}」，奖励 ${fmtMoney(t.amount)} 已记下！🎉`;
+      $('choreNote').value='';
+      // 刷新记录与汇总
+      const r = await window.SummerCloud.listChoreLogs({ days: 120 });
+      render(r.logs||[]);
+    }catch(e){ $('choreMsg').className='msg err'; $('choreMsg').textContent=e.message||'记录失败，请重试。'; }
+    finally{ btn.disabled=false; }
+  }
+
+  function render(logs){
+    const today=todayStr(), wk=weekMonday();
+    const todayLogs = logs.filter(l=>l.log_date===today);
+    const weekLogs  = logs.filter(l=>l.log_date>=wk);
+    const sumToday = todayLogs.reduce((s,l)=>s+Number(l.amount),0);
+    const sumWeek  = weekLogs.reduce((s,l)=>s+Number(l.amount),0);
+    const sumTotal = logs.reduce((s,l)=>s+Number(l.amount),0);
+    $('sumToday').textContent=fmtMoney(sumToday);
+    $('sumWeek').textContent=fmtMoney(sumWeek);
+    $('sumTotal').textContent=fmtMoney(sumTotal);
+    // 今日记录（按时间倒序）
+    const list=$('todayList');
+    if(!todayLogs.length){ list.innerHTML='<div class="empty">今天还没有完成家务哦</div>'; return; }
+    const sorted=[...todayLogs].sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
+    list.innerHTML = sorted.map(l=>`<div class="log-item"><div><div class="name">${escapeHtml(l.task_name)}</div><div class="time">${fmtTime(l.created_at)}${l.note?(' · '+escapeHtml(l.note)):''}</div></div><div class="amt">+${fmtMoney(l.amount)}</div></div>`).join('');
+  }
+  function fmtTime(iso){ if(!iso) return ''; const d=new Date(iso); return d.toTimeString().slice(0,5); }
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // 启动时若已有登录态则直接进入
+  (async()=>{
+    const me = window.SummerCloud.getChildSession();
+    if(me && me.childId){
+      $('loginScreen').style.display='none'; $('mainApp').style.display='block';
+      try{ await window.SummerCloud.ensureAnonymousSession(); }catch(_){}
+      await loadData();
+    }
+  })();
+</script>
+</body>
+</html>

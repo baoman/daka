@@ -304,6 +304,33 @@
     return checkins || [];
   }
 
+  // ===== 家务任务（孩子端记录 + 家长配置/汇总） =====
+  async function getChoreTasks() {
+    return invokeAsAdmin('get_chore_tasks');
+  }
+  // 孩子端读取家庭共享的家务任务列表（无需家长密码）
+  async function getChoreTasksPublic() {
+    await ensureAnonymousSession();
+    return invoke('get_chore_tasks');
+  }
+  async function saveChoreTasks(tasks) {
+    return invokeAsAdmin('save_chore_tasks', { tasks });
+  }
+  async function addChoreLog(payload) {
+    return invokeAsChild('add_chore_log', payload || {});
+  }
+  async function addChoreLogAsAdmin(payload) {
+    return invokeAsAdmin('add_chore_log', payload || {});
+  }
+  async function listChoreLogs(params) {
+    const session = getChildSession();
+    if (session?.childId) return invokeAsChild('list_chore_logs', params || {});
+    return invokeAsAdmin('list_chore_logs', params || {});
+  }
+  async function deleteChoreLog(id) {
+    return invokeAsAdmin('delete_chore_log', { id });
+  }
+
   // ===== 孩子进度（云端持久化） =====
   async function loadChildProgress() {
     return invokeAsChild('load_progress');
@@ -378,6 +405,14 @@
     invokeAsAdmin,
     fetchCheckinsAsAdmin,
     fetchCheckinsForChild,
+    // 家务任务
+    getChoreTasks,
+    getChoreTasksPublic,
+    saveChoreTasks,
+    addChoreLog,
+    addChoreLogAsAdmin,
+    listChoreLogs,
+    deleteChoreLog,
     listChildren,
     createChild,
     updateChild,
