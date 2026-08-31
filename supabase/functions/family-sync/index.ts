@@ -19,7 +19,7 @@ const CARD_POOL = {
   GP:  ['gp-imperial-egg','gp-legendary-egg']
 } as const;
 type Rarity = keyof typeof CARD_POOL;
-type Reward = { type: 'stars'; stars: 1 | 3 | 5 } | { type: 'card'; rarity: Rarity; cardId: string };
+type Reward = { type: 'stars'; stars: number } | { type: 'card'; rarity: Rarity; cardId: string };
 const ALL_RARITIES: Rarity[] = ['R','SR','PR','SSR','HR','UR','CP','LGR','SP','GP'];
 
 // ═══════════════════ 工具函数 ═══════════════════
@@ -59,6 +59,8 @@ function makeReward(v: unknown): Reward | null {
   if (kind === 'stars_1') return { type: 'stars', stars: 1 };
   if (kind === 'stars_3') return { type: 'stars', stars: 3 };
   if (kind === 'stars_5') return { type: 'stars', stars: 5 };
+  if (kind === 'stars_100') return { type: 'stars', stars: 100 };
+  if (kind === 'stars_1000') return { type: 'stars', stars: 1000 };
   const m = kind.match(/^card_(r|sr|pr|ssr|hr|ur|cp|lgr|sp|gp)$/i);
   if (m) { const rarity = m[1].toUpperCase() as Rarity; return { type: 'card', rarity, cardId: randomItem(CARD_POOL[rarity]) }; }
   return kind === 'surprise' ? randomReward() : null;
