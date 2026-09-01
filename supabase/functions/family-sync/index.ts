@@ -71,7 +71,7 @@ function expiryFor(days: unknown) {
   return e.toISOString();
 }
 const PERIODS = ['morning', 'afternoon', 'evening'] as const;
-const SUBJECTS = ['cn', 'en', 'ma', 'other'] as const;
+const SUBJECTS = ['cn', 'en', 'ma', 'other', 'pe'] as const;
 type ScheduleTask = { id: string; name: string; detail: string; period: typeof PERIODS[number]; subject: typeof SUBJECTS[number] };
 function validScheduleDate(v: unknown) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')); }
 function normalizeScheduleTasks(v: unknown): ScheduleTask[] | null {
@@ -103,6 +103,7 @@ Deno.serve(async (request) => {
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return reply({ error: '请求格式错误。' }, 400); }
   const action = body.action;
+  try {
 
   // -- 身份识别 --
   // 家长身份固定为单一家庭身份（与具体设备/浏览器无关），确保换设备、清缓存后仍能看到同一份数据。
@@ -338,9 +339,46 @@ Deno.serve(async (request) => {
     const ownerId = FAMILY_OWNER_ID;
     const from = validScheduleDate(body.from) ? String(body.from) : new Date().toISOString().slice(0, 10);
     const to = validScheduleDate(body.to) ? String(body.to) : from;
+    // 逐日覆盖（具体日期）
     const { data, error } = await admin.from('schedule_overrides').select('schedule_date, tasks, version, updated_at').eq('owner_id', ownerId).gte('schedule_date', from).lte('schedule_date', to).order('schedule_date');
     if (error) return reply({ error: error.message }, 400);
-    return reply({ ok: true, overrides: data || [] });
+    // 规则式课表（工作日 / 周末 / 每天）单独存于 schedule_rules 表，与逐日覆盖互不干扰
+    const { data: ruleRow, error: ruleErr } = await admin.from('schedule_rules').select('config').eq('owner_id', ownerId).maybeSingle();
+    if (ruleErr) return reply({ error: ruleErr.message }, 400);
+    const cfg = (ruleRow && ruleRow.config && typeof ruleRow.config === 'object') ? ruleRow.config as Record<string, unknown> : {};
+    const version = Number(cfg.version || 1);
+    const rules: { schedule_date: string; tasks: ScheduleTask[]; version: number }[] = [];
+    if (Array.isArray(cfg.daily)) rules.push({ schedule_date: '__daily__', tasks: normalizeScheduleTasks(cfg.daily) || [], version });
+    if (Array.isArray(cfg.weekday)) rules.push({ schedule_date: '__weekday__', tasks: normalizeScheduleTasks(cfg.weekday) || [], version });
+    if (Array.isArray(cfg.weekend)) rules.push({ schedule_date: '__weekend__', tasks: normalizeScheduleTasks(cfg.weekend) || [], version });
+    return reply({ ok: true, overrides: data || [], rules });
+  }
+  if (action === 'save_schedule_rules') {
+    if (!isParent) return reply({ error: '请先登录家长账号。' }, 403);
+    const slot = String(body.slot || '');
+    const isClear = slot === 'clear';
+    if (!isClear && !['daily', 'weekday', 'weekend'].includes(slot)) return reply({ error: '课表作用范围不正确。' }, 400);
+    let tasks: ScheduleTask[] = [];
+    if (!isClear) {
+      tasks = normalizeScheduleTasks(body.tasks);
+      if (!tasks || !tasks.length) return reply({ error: '请先配置课表内容。' }, 400);
+    }
+    // 读取现有配置，按 slot 单独更新，避免互相覆盖
+    const { data: existing, error: rerr } = await admin.from('schedule_rules').select('config').eq('owner_id', userId).maybeSingle();
+    if (rerr) return reply({ error: rerr.message }, 400);
+    const config: Record<string, unknown> = (existing && existing.config && typeof existing.config === 'object') ? existing.config as Record<string, unknown> : {};
+    if (isClear) {
+      config.daily = []; config.weekday = []; config.weekend = [];
+    } else if (slot === 'daily') {
+      config.daily = tasks; config.weekday = []; config.weekend = []; // 套用“每天”即清空工作日/周末拆分
+    } else {
+      config[slot] = tasks; // weekday / weekend 互不清除，可单独微调
+      delete config.daily; // 设置具体日期范围后，“每天”不再生效
+    }
+    config.version = Number(config.version || 1) + 1;
+    const { error } = await admin.from('schedule_rules').upsert({ owner_id: userId, config, updated_at: new Date().toISOString() }, { onConflict: 'owner_id' });
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true, slot: isClear ? 'clear' : slot });
   }
   if (action === 'save_schedule_overrides') {
     if (!isParent) return reply({ error: '请先登录家长账号。' }, 403);
@@ -466,5 +504,8 @@ Deno.serve(async (request) => {
     return reply({ ok: true, total });
   }
 
+  } catch (e) {
+    return reply({ error: '服务内部错误：' + (e && e.message ? e.message : String(e)) }, 500);
+  }
   return reply({ error: '未知操作。' }, 400);
 });

@@ -699,6 +699,7 @@
   .badge-en { color: #4d7ad8; }
   .badge-ma { color: #2ea87e; }
   .badge-other { color: #9b6dd6; }
+  .badge-pe { color: #e8822e; }
 
   .off-day {
     padding: 22px;
@@ -2855,6 +2856,7 @@
   const DATA_SCHEMA_KEY = () => 'summer_data_schema_version_' + childSuffix();
   const CLOUD_PENDING_KEY = () => 'summer_cloud_pending_dates_v1_' + childSuffix();
   const SCHEDULE_CACHE_KEY = () => 'summer_schedule_overrides_v1_' + childSuffix();
+  const SCHEDULE_RULES_KEY = () => 'summer_schedule_rules_v1_' + childSuffix();
   const PLAN_START = new Date(2026, 6, 1);
   const COURSE_START = new Date(2026, 7, 3);
   const COURSE_END = new Date(2026, 7, 15);
@@ -2899,7 +2901,7 @@
     '{period}推进得很顺，{name} 继续保持就有奖励。',
     '蛋仔的小本本又给 {name} 画了一颗星，{task} 完成。'
   ];
-  const SUBJECT_LABELS = { cn: '语文', en: '英语', ma: '数学', other: '综合' };
+  const SUBJECT_LABELS = { cn: '语文', en: '英语', ma: '数学', other: '综合', pe: '体育' };
   const PERIOD_LABELS = { morning: '上午', afternoon: '下午', evening: '晚上' };
 
   function generateQuote(taskInfo) {
@@ -3051,7 +3053,7 @@
   }
 
   function isPlanDate(date) {
-    return date >= PLAN_START && date <= PLAN_END;
+    return true; // 课表由家长按日期定义，不再限制为固定暑假区间；任何日期都可打卡、显示对应课表
   }
 
   function isAugust(date) {
@@ -3323,7 +3325,7 @@
     if (!Array.isArray(raw) || raw.length > 24) return [];
     const ids = new Set();
     return raw.filter((item) => {
-      if (!isPlainObject(item) || !/^[a-zA-Z0-9_-]{2,64}$/.test(String(item.id || '')) || !String(item.name || '').trim() || !['morning', 'afternoon', 'evening'].includes(item.period) || !['cn', 'en', 'ma', 'other'].includes(item.subject) || ids.has(item.id)) return false;
+      if (!isPlainObject(item) || !/^[a-zA-Z0-9_-]{2,64}$/.test(String(item.id || '')) || !String(item.name || '').trim() || !['morning', 'afternoon', 'evening'].includes(item.period) || !['cn', 'en', 'ma', 'other', 'pe'].includes(item.subject) || ids.has(item.id)) return false;
       ids.add(item.id);
       return true;
     }).map((item) => ({ id: String(item.id), name: String(item.name).slice(0, 40), detail: String(item.detail || '').slice(0, 120), period: item.period, subject: item.subject }));
@@ -3349,6 +3351,47 @@
 
   function getScheduleOverride(dayKey) {
     return loadScheduleOverrides()[dayKey] || null;
+  }
+
+  // 规则式课表（工作日 / 周末 / 每天）：与逐日覆盖分开存储，优先级低于单日例外、高于硬编码默认。
+  let scheduleRules = { daily: [], weekday: [], weekend: [], dailyVersion: 1, weekdayVersion: 1, weekendVersion: 1 };
+  function loadScheduleRulesCache() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(SCHEDULE_RULES_KEY()) || 'null');
+      if (!isPlainObject(raw)) return;
+      scheduleRules = {
+        daily: normalizeScheduleTasks(raw.daily),
+        weekday: normalizeScheduleTasks(raw.weekday),
+        weekend: normalizeScheduleTasks(raw.weekend),
+        dailyVersion: Math.max(1, Number(raw.dailyVersion || 1)),
+        weekdayVersion: Math.max(1, Number(raw.weekdayVersion || 1)),
+        weekendVersion: Math.max(1, Number(raw.weekendVersion || 1))
+      };
+    } catch (e) { /* 无缓存则用硬编码默认 */ }
+  }
+  function saveScheduleRulesCache() {
+    try { localStorage.setItem(SCHEDULE_RULES_KEY(), JSON.stringify(scheduleRules)); } catch (e) { /* 保持本地可用 */ }
+  }
+  function applyScheduleRules(rows) {
+    (rows || []).forEach((r) => {
+      const k = String(r.schedule_date || '');
+      const tasks = normalizeScheduleTasks(r.tasks);
+      if (k === '__daily__') { scheduleRules.daily = tasks; scheduleRules.dailyVersion = Math.max(1, Number(r.version || 1)); }
+      else if (k === '__weekday__') { scheduleRules.weekday = tasks; scheduleRules.weekdayVersion = Math.max(1, Number(r.version || 1)); }
+      else if (k === '__weekend__') { scheduleRules.weekend = tasks; scheduleRules.weekendVersion = Math.max(1, Number(r.version || 1)); }
+    });
+    saveScheduleRulesCache();
+  }
+  function resolveScheduleRule(date) {
+    // 优先级：工作日/周末（按星期）优先于「每天」，使「应用到工作日/周末」可单独微调覆盖「应用到每天」
+    const wknd = isWeekend(date);
+    if (wknd && scheduleRules.weekend && scheduleRules.weekend.length)
+      return { mode: 'weekend-rule', title: '周末课表', tasks: scheduleRules.weekend, version: scheduleRules.weekendVersion };
+    if (!wknd && scheduleRules.weekday && scheduleRules.weekday.length)
+      return { mode: 'weekday-rule', title: '工作日课表', tasks: scheduleRules.weekday, version: scheduleRules.weekdayVersion };
+    if (scheduleRules.daily && scheduleRules.daily.length)
+      return { mode: 'daily', title: '每天课表', tasks: scheduleRules.daily, version: scheduleRules.dailyVersion };
+    return null;
   }
 
   function mergeScheduleOverrides(rows, from = '', to = '') {
@@ -3377,6 +3420,7 @@
       const result = await window.SummerCloud.getSchedule(from, to);
       // 课表覆盖是当天任务总量的唯一来源；每次同步完成后都重新渲染进度与分时段计数。
       mergeScheduleOverrides(result.overrides, from, to);
+      if (result && result.rules) applyScheduleRules(result.rules);
       renderAll();
     } catch (e) { /* 离线时继续使用最近缓存 */ }
     finally { scheduleRefreshInFlight = false; }
@@ -3587,14 +3631,17 @@
   }
 
   function getTaskBundle(date) {
-    if (!isPlanDate(date)) {
-      return { mode: 'off', title: '计划外日期', tasks: { morning: [], afternoon: [], evening: [] } };
-    }
     const override = getScheduleOverride(dateKey(date));
     if (override) {
       const tasks = { morning: [], afternoon: [], evening: [] };
       override.tasks.forEach((task) => tasks[task.period].push(task));
       return { mode: 'custom', title: '今日安排', tasks, version: override.version };
+    }
+    const rule = resolveScheduleRule(date);
+    if (rule) {
+      const tasks = { morning: [], afternoon: [], evening: [] };
+      rule.tasks.forEach((task) => tasks[task.period].push(task));
+      return { mode: rule.mode, title: rule.title, tasks, version: rule.version };
     }
     if (isCoursePeriod(date)) {
       if (date.getDay() === 0) return { mode: 'regular', title: '常规计划', tasks: REGULAR_TASKS };
@@ -3608,7 +3655,6 @@
 
   function getVisibleTasks(date) {
     const bundle = getTaskBundle(date);
-    if (bundle.mode === 'off') return [];
     const list = [];
     ['morning', 'afternoon', 'evening'].forEach((period) => {
       (bundle.tasks[period] || []).forEach((task) => {
@@ -3944,13 +3990,10 @@
       if (sameDay(date, selectedDate)) cls += ' selected';
       if (sameDay(date, today)) cls += ' today';
       if (!isPlanDate(date)) cls += ' outside';
+      const bundle = getTaskBundle(date);
       const note = !isPlanDate(date)
         ? '计划外'
-        : isCoursePeriod(date)
-          ? '课程'
-          : isWeekend(date)
-            ? '周末'
-            : '常规';
+        : ({ custom: '今日', daily: '每天', 'weekday-rule': '工作日', 'weekend-rule': '周末', course: '课程', 'course-weekend': '课程', regular: '常规', weekend: '周末', off: '计划外' }[bundle.mode] || '常规');
       const badgeRow = [];
       if (progress.isFull) badgeRow.push('<span class="tiny-badge full">100%</span>');
       if (rewardCard) {
@@ -3981,9 +4024,15 @@
         ? '📚 课程期间'
         : bundle.mode === 'weekend'
           ? '🌿 周末减量'
-          : bundle.mode === 'custom'
-            ? '✨ 今日安排'
-            : '🎈 自由安排';
+          : bundle.mode === 'daily'
+            ? '📅 每天课表'
+            : bundle.mode === 'weekday-rule'
+              ? '🗓 工作日课表'
+              : bundle.mode === 'weekend-rule'
+                ? '🌿 周末课表'
+                : bundle.mode === 'custom'
+                  ? '✨ 今日安排'
+                  : '🎈 自由安排';
     document.getElementById('progressValue').textContent = `${progress.pct}%`;
     document.getElementById('progressCount').textContent = `${progress.done} / ${progress.total}`;
     document.getElementById('progressFill').style.width = `${progress.pct}%`;
@@ -3998,10 +4047,6 @@
   function renderTasks() {
     const bundle = getTaskBundle(selectedDate);
     const area = document.getElementById('taskArea');
-    if (bundle.mode === 'off') {
-      area.innerHTML = '<div class="off-day">当前选择的日期不在暑假学习计划区间内。<br>可以切回 2026 年 7 月 - 8 月的计划日期继续打卡。</div>';
-      return;
-    }
 
     const checks = loadChecks();
     const progress = getDayProgress(selectedDate, checks);
@@ -4029,7 +4074,7 @@
               <div class="task-name">${task.name}</div>
               <div class="task-detail">${task.detail}</div>
             </div>
-            <span class="task-badge badge-${task.subject}">${{cn:'语文',en:'英语',ma:'数学',other:'综合'}[task.subject]||'综合'}</span>
+            <span class="task-badge badge-${task.subject}">${{cn:'语文',en:'英语',ma:'数学',other:'综合',pe:'体育'}[task.subject]||'综合'}</span>
           </li>`;
       });
       html += '</ul></div>';
@@ -4595,6 +4640,7 @@
     const s = window.SummerCloud.getChildSession();
     if (s) document.getElementById('welcomeName').textContent = '👋 ' + s.childName + '，开始打卡吧！';
     syncRewardFromChecks();
+    loadScheduleRulesCache();
     renderAll();
     // 存钱罐总额独立加载，立即并行发起，不排在同步链末尾等待
     loadChoreTotal();
