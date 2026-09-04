@@ -483,6 +483,56 @@ Deno.serve(async (request) => {
     if (error) return reply({ error: error.message }, 400);
     return reply({ ok: true });
   }
+
+  // ===== 存钱罐·支出（孩子录入 + 家长可删除）=====
+  if (action === 'add_chore_expense') {
+    const childId = String(body.childId || '');
+    if (!childId) return reply({ error: '请先登录。' }, 400);
+    const { data: child } = await admin.from('children').select('id').eq('id', childId).maybeSingle();
+    if (!child) return reply({ error: '孩子信息无效。' }, 400);
+    const amount = Math.round(Number(body.amount) * 100) / 100;
+    const note = String(body.note || '').trim().slice(0, 50);
+    const spentDate = validScheduleDate(body.spentDate) ? String(body.spentDate) : new Date().toISOString().slice(0, 10);
+    if (!(amount > 0) || amount > 9999) return reply({ error: '支出金额需为 0.01-9999 元。' }, 400);
+    const { data, error } = await admin.from('chore_expenses').insert({
+      owner_id: FAMILY_OWNER_ID, child_id: childId, amount, note, spent_date: spentDate
+    }).select('*').single();
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true, expense: data });
+  }
+  if (action === 'list_chore_expenses') {
+    const days = Math.min(Number(body.days) || 30, 120);
+    const since = new Date(); since.setDate(since.getDate() - days + 1);
+    const from = since.toISOString().slice(0, 10);
+    let query = admin.from('chore_expenses').select('*').gte('spent_date', from);
+    if (isParent) {
+      const { data: children } = await admin.from('children').select('id').eq('owner_id', userId);
+      const ids = (children || []).map((c: { id: string }) => c.id);
+      if (!ids.length) return reply({ ok: true, expenses: [] });
+      query = query.in('child_id', ids);
+    } else {
+      const childId = String(body.childId || '');
+      if (!childId) return reply({ error: '请先登录。' }, 400);
+      query = query.eq('child_id', childId);
+    }
+    const { data, error } = await query.order('spent_date', { ascending: false }).order('created_at', { ascending: false });
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true, expenses: data || [] });
+  }
+  if (action === 'delete_chore_expense') {
+    const id = String(body.id || '');
+    // 家长：按家庭删除；孩子：只能删自己的
+    let query = admin.from('chore_expenses').delete().eq('id', id);
+    if (isParent) query = query.eq('owner_id', userId);
+    else {
+      const childId = String(body.childId || '');
+      if (!childId) return reply({ error: '请先登录。' }, 400);
+      query = query.eq('child_id', childId);
+    }
+    const { error } = await query;
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true });
+  }
   if (action === 'chore_total') {
     // 数据库侧直接给出累计合计金额（只取 amount 单列聚合，轻量快速）
     let query = admin.from('chore_logs').select('amount');

@@ -67,6 +67,36 @@
   .log-item .time{color:var(--muted);font-size:11px}
   .empty{color:var(--muted);font-size:13px;text-align:center;padding:18px 6px}
   .empty.tip{background:var(--amber-soft);color:var(--amber);border-radius:12px;padding:14px;line-height:1.7}
+  /* 存钱罐·余额并入收入汇总行 */
+  .summary{grid-template-columns:repeat(4,1fr);gap:6px}
+  .summary .box{padding:10px 4px}
+  .summary .label{font-size:11px}
+  .summary .box.balance-box{background:linear-gradient(135deg,#fff3e6,#ffe9f0);border:1px solid #ffe0c2}
+  .summary .box.balance-box .val{color:#e8822e;font-size:18px}
+  .summary .box.balance-box.neg .val{color:var(--red)}
+  .balance-sub{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.2}
+  .expense-open{display:block;width:100%;text-align:center;margin-top:12px;background:transparent;color:var(--red);font-size:14px;font-weight:700;padding:10px;border:1px dashed #f3c0bc;border-radius:12px}
+  /* 支出弹窗 */
+  .modal{position:fixed;inset:0;background:rgba(48,43,66,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .modal-card{width:100%;max-width:520px;max-height:86vh;background:#fff;border-radius:20px;display:flex;flex-direction:column;overflow:hidden;animation:pop .2s ease}
+  @keyframes pop{from{transform:scale(.96);opacity:.5}to{transform:scale(1);opacity:1}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--line)}
+  .modal-head h3{margin:0;font-size:16px}
+  .modal-close{background:transparent;color:var(--muted);font-size:26px;line-height:1;padding:0 6px;font-weight:700}
+  .modal-body{padding:16px;overflow:auto}
+  .modal-body .expense-form{margin:0 0 16px;padding:0;border:0;background:transparent}
+  .modal-body .expense-list-wrap h4{font-size:14px;margin:0 0 8px;color:var(--ink)}
+  .expense-row{display:flex;gap:8px;margin-bottom:8px}
+  .expense-row input{flex:1;width:auto;padding:11px;border:1px solid var(--line);border-radius:12px;font-size:15px;font-family:inherit;box-sizing:border-box;margin:0;text-align:left}
+  .expense-row input[type=number]{max-width:130px}
+  .expense-actions{display:flex;gap:8px;align-items:center}
+  .expense-actions .btn-primary{flex:0 0 auto;width:auto;padding:11px 18px}
+  .expense-item{display:flex;align-items:center;justify-content:space-between;padding:11px 4px;border-bottom:1px solid var(--line);font-size:14px}
+  .expense-item:last-child{border-bottom:0}
+  .expense-item .name{font-weight:600}
+  .expense-item .amt{color:var(--red);font-weight:800;font-size:15px;white-space:nowrap}
+  .expense-item .time{color:var(--muted);font-size:11px}
+  .expense-item .del{background:transparent;color:var(--muted);font-size:12px;padding:4px 8px}
   @media(max-width:480px){
     .page{padding:14px 0 40px}
     h1{font-size:18px}
@@ -100,10 +130,12 @@
   <div class="card-box">
     <h3>💰 我的存钱罐</h3>
     <div class="summary">
-      <div class="box"><div class="label">今日合计</div><div class="val" id="sumToday">¥0</div></div>
-      <div class="box"><div class="label">本周合计</div><div class="val" id="sumWeek">¥0</div></div>
-      <div class="box"><div class="label">累计合计</div><div class="val" id="sumTotal">¥0</div></div>
+      <div class="box"><div class="label">今日收入</div><div class="val" id="sumToday">¥0</div></div>
+      <div class="box"><div class="label">本周收入</div><div class="val" id="sumWeek">¥0</div></div>
+      <div class="box"><div class="label">累计收入</div><div class="val" id="sumTotal">¥0</div></div>
+      <div class="box balance-box" id="balanceBox"><div class="label">余额</div><div class="val" id="balanceVal">¥0</div><div class="balance-sub" id="balanceSub"></div></div>
     </div>
+    <button class="expense-open" type="button" onclick="openExpenseModal()">💸 支出录入 / 查看明细</button>
   </div>
   <div class="card-box">
     <h3>✅ 完成家务</h3>
@@ -121,10 +153,40 @@
     <h3 id="logTitle">📋 今日记录</h3>
     <div id="todayList"><div class="empty">今天还没有完成家务哦</div></div>
   </div>
+
+  <!-- 支出弹窗 -->
+  <div class="modal" id="expenseModal" style="display:none" onclick="if(event.target===this)closeExpenseModal()">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>💸 支出</h3>
+        <button class="modal-close" type="button" onclick="closeExpenseModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="expense-form">
+          <div class="date-row">
+            <label>支出日期</label>
+            <input type="date" id="expenseDate">
+          </div>
+          <div class="expense-row">
+            <input type="number" id="expenseAmt" placeholder="金额（元）" min="0.01" max="9999" step="0.01" inputmode="decimal">
+            <input type="text" id="expenseNote" placeholder="买了什么？（选填）" maxlength="50">
+          </div>
+          <div class="expense-actions">
+            <button class="btn-primary" type="button" onclick="submitExpense()">保存支出</button>
+          </div>
+          <div class="msg" id="expenseMsg"></div>
+        </div>
+        <div class="expense-list-wrap">
+          <h4 id="expenseLogTitle">支出记录</h4>
+          <div id="expenseList"><div class="empty">今天还没有支出记录</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="cloud-config.js?v=2.0.1"></script>
-<script src="cloud-sync.js?v=3.4.0"></script>
+<script src="cloud-sync.js?v=3.5.0"></script>
 <script>
   const $ = (id) => document.getElementById(id);
   function fmtMoney(n){ n = Number(n)||0; return '¥' + (Number.isInteger(n) ? n : n.toFixed(2)); }
@@ -150,13 +212,14 @@
   }
 
   let LOGS = [];
+  let EXPENSES = [];
   let TASKS = [];
   async function loadData(){
     const me = window.SummerCloud.getChildSession();
     $('welcomeName').textContent = me?.childName || '我';
     setChoreDate(todayStr());
     const dateEl = $('choreDate');
-    if(dateEl){ dateEl.max = todayStr(); dateEl.addEventListener('change', renderLogList); }
+    if(dateEl){ dateEl.max = todayStr(); dateEl.addEventListener('change', ()=>{ renderLogList(); renderExpenseList(); }); }
     try{
       const res = await window.SummerCloud.getChoreTasksPublic();
       TASKS = res.tasks || [];
@@ -167,6 +230,10 @@
       const r = await window.SummerCloud.listChoreLogs({ days: 120 });
       LOGS = r.logs || [];
     }catch(e){ LOGS = []; }
+    try{
+      const r2 = await window.SummerCloud.listChoreExpenses({ days: 120 });
+      EXPENSES = r2.expenses || [];
+    }catch(e){ EXPENSES = []; }
     render();
   }
 
@@ -250,7 +317,13 @@
     $('sumToday').textContent=fmtMoney(sumToday);
     $('sumWeek').textContent=fmtMoney(sumWeek);
     $('sumTotal').textContent=fmtMoney(sumTotal);
+    const expTotal = EXPENSES.reduce((s,e)=>s+Number(e.amount),0);
+    const balance = sumTotal - expTotal;
+    $('balanceVal').textContent = (balance<0 ? '−' : '') + fmtMoney(Math.abs(balance));
+    $('balanceSub').textContent = expTotal>0 ? `已支出 ${fmtMoney(expTotal)}` : '';
+    $('balanceBox').classList.toggle('neg', balance<0);
     renderLogList();
+    renderExpenseList();
   }
 
   function renderLogList(){
@@ -264,6 +337,52 @@
     if(!dayLogs.length){ list.innerHTML= isToday ? '<div class="empty">今天还没有完成家务哦</div>' : `<div class="empty">${selDate} 暂无记录</div>`; return; }
     const sorted=[...dayLogs].sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
     list.innerHTML = sorted.map(l=>`<div class="log-item"><div><div class="name">${escapeHtml(l.task_name)}${(l.qty&&l.qty>1)?` <span class="time">×${l.qty}次</span>`:''}</div><div class="time">${fmtTime(l.created_at)}${l.note?(' · '+escapeHtml(l.note)):''}</div></div><div class="amt">+${fmtMoney(l.amount)}</div></div>`).join('');
+  }
+  function renderExpenseList(){
+    const selDate = getChoreDate();
+    const today = todayStr();
+    const list=$('expenseList');
+    const title=$('expenseLogTitle');
+    const isToday = selDate === today;
+    title.textContent = isToday ? '💸 支出记录' : `💸 ${selDate} 支出`;
+    const dayExp = EXPENSES.filter(e=>e.spent_date===selDate);
+    if(!dayExp.length){ list.innerHTML= isToday ? '<div class="empty">今天还没有支出记录</div>' : `<div class="empty">${selDate} 暂无支出</div>`; return; }
+    const sorted=[...dayExp].sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
+    list.innerHTML = sorted.map(e=>`<div class="expense-item"><div><div class="name">${escapeHtml(e.note||'支出')}</div><div class="time">${fmtTime(e.created_at)}</div></div><div style="display:flex;align-items:center;gap:10px"><div class="amt">−${fmtMoney(e.amount)}</div><button class="del" type="button" onclick="deleteExpense('${e.id}')">删除</button></div></div>`).join('');
+  }
+  function openExpenseModal(){
+    $('expenseModal').style.display='flex';
+    $('expenseDate').value=getChoreDate();
+    $('expenseMsg').textContent='';
+    $('expenseAmt').value=''; $('expenseNote').value='';
+    renderExpenseList();
+  }
+  function closeExpenseModal(){ $('expenseModal').style.display='none'; }
+  async function submitExpense(){
+    const amt=Math.round(Number($('expenseAmt').value)*100)/100;
+    const note=$('expenseNote').value.trim();
+    const date=$('expenseDate').value || getChoreDate();
+    const msg=$('expenseMsg');
+    if(!(amt>0)){ msg.className='msg err'; msg.textContent='请输入大于 0 的金额。'; return; }
+    if(date>todayStr()){ msg.className='msg err'; msg.textContent='支出日期不能晚于今天。'; return; }
+    msg.className='msg'; msg.textContent='保存中…';
+    try{
+      await window.SummerCloud.addChoreExpense({ amount:amt, note, spentDate:date });
+      msg.className='msg ok'; msg.textContent=`已记录支出 ${fmtMoney(amt)}${note?('：'+note):''} 💸`;
+      $('expenseAmt').value=''; $('expenseNote').value='';
+      const r = await window.SummerCloud.listChoreExpenses({ days: 120 });
+      EXPENSES = r.expenses||[];
+      render();
+    }catch(e){ msg.className='msg err'; msg.textContent=e.message||'记录失败，请重试。'; }
+  }
+  async function deleteExpense(id){
+    if(!confirm('确认删除这条支出记录吗？')) return;
+    try{
+      await window.SummerCloud.deleteChoreExpense(id);
+      const r = await window.SummerCloud.listChoreExpenses({ days: 120 });
+      EXPENSES = r.expenses||[];
+      render();
+    }catch(e){ alert(e.message||'删除失败'); }
   }
   function fmtTime(iso){ if(!iso) return ''; const d=new Date(iso); return d.toTimeString().slice(0,5); }
   function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }

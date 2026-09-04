@@ -335,6 +335,19 @@
   async function deleteChoreLog(id) {
     return invokeAsAdmin('delete_chore_log', { id });
   }
+  async function addChoreExpense(payload) {
+    return invokeAsChild('add_chore_expense', payload || {});
+  }
+  async function listChoreExpenses(params) {
+    const session = getChildSession();
+    if (session?.childId) return invokeAsChild('list_chore_expenses', params || {});
+    return invokeAsAdmin('list_chore_expenses', params || {});
+  }
+  async function deleteChoreExpense(id) {
+    const session = getChildSession();
+    if (session?.childId) return invokeAsChild('delete_chore_expense', { id });
+    return invokeAsAdmin('delete_chore_expense', { id });
+  }
 
   // ===== 孩子进度（云端持久化） =====
   async function loadChildProgress() {
@@ -419,6 +432,9 @@
     listChoreLogs,
     getChoreTotal,
     deleteChoreLog,
+    addChoreExpense,
+    listChoreExpenses,
+    deleteChoreExpense,
     listChildren,
     createChild,
     updateChild,
