@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>吃药记录 · 蛋仔乐园</title>
+<style>
+  :root{
+    --ink:#302b42;--muted:#7d7691;--line:#e7e1ee;--violet:#6c63ff;--violet-soft:#f0efff;
+    --green:#2e8a57;--green-soft:#eaf8ef;--amber:#b76d14;--amber-soft:#fff5e6;--red:#b42318;--bg:#fbf9fd;
+    --med:#2e8a9a;--med-soft:#e7f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.5}
+  .page{width:min(640px,calc(100% - 24px));margin:0 auto;padding:18px 0 56px}
+  /* 登录 */
+  #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(180deg,#fffaff,#fff7fd 52%,#f7fbff)}
+  #loginScreen .card{text-align:center;max-width:320px;padding:40px 30px;background:rgba(255,255,255,.92);border-radius:24px;box-shadow:0 18px 40px rgba(136,98,210,.12)}
+  #loginScreen .emoji{font-size:48px;margin-bottom:12px}
+  #loginScreen h2{font-size:22px;font-weight:900;color:#4a3a66;margin:0 0 8px}
+  #loginScreen p{color:#7c6f95;font-size:13px;margin:0 0 24px}
+  input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:16px;margin-bottom:10px;text-align:center;box-sizing:border-box;font-family:inherit}
+  button{font:inherit;cursor:pointer;border:0;border-radius:12px}
+  .btn-primary{width:100%;padding:12px;background:var(--med);color:#fff;font-size:16px;font-weight:700}
+  #loginError{color:var(--red);font-size:12px;margin:12px 0 0;min-height:18px}
+  /* 顶栏 */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+  .topbar .who{font-size:13px;color:var(--muted)}
+  .topbar .who b{color:var(--ink);font-size:15px}
+  .topbar .acts{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+  .link-btn{background:transparent;color:var(--violet);font-size:13px;font-weight:600;padding:6px 8px}
+  .link-btn.danger{color:var(--red)}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  /* 卡片 */
+  .card-box{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+  .card-box h3{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:6px}
+  /* 补打日期 */
+  .date-row{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+  .date-row label{font-size:13px;color:var(--muted);white-space:nowrap;font-weight:600}
+  .date-row input[type=date]{flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:12px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink);margin:0;text-align:center;box-sizing:border-box;-webkit-appearance:none}
+  /* 录入表单 */
+  .field{margin-bottom:10px}
+  .field > label{display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:6px}
+  .field input{margin-bottom:0;text-align:left}
+  .field input[type=number]{max-width:160px}
+  /* 时段分段 */
+  .seg{display:flex;gap:8px}
+  .seg-btn{flex:1;padding:11px 0;background:#f6f3fb;color:var(--violet);font-size:15px;font-weight:700;border:1px solid var(--line);border-radius:12px}
+  .seg-btn.active{background:var(--med);color:#fff;border-color:var(--med)}
+  .row-2{display:flex;gap:10px}
+  .row-2 .field{flex:1;margin-bottom:10px}
+  /* 记录列表 */
+  .log-item{display:flex;align-items:flex-start;justify-content:space-between;padding:11px 4px;border-bottom:1px solid var(--line);font-size:14px}
+  .log-item:last-child{border-bottom:0}
+  .log-item .name{font-weight:700;font-size:15px}
+  .log-item .meta{color:var(--muted);font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .slot-tag{display:inline-block;padding:1px 8px;border-radius:8px;font-size:11px;font-weight:700}
+  .slot-morning{background:#fff3d6;color:#b07a14}
+  .slot-noon{background:#e7f6f9;color:#2e7d8a}
+  .slot-evening{background:#efe7fb;color:#6c63ff}
+  .log-item .amt{color:var(--med);font-weight:800;font-size:14px;white-space:nowrap;margin-right:8px}
+  .log-item .right{display:flex;align-items:center;gap:6px}
+  .log-item .del{background:transparent;color:var(--muted);font-size:12px;padding:4px 8px}
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:18px 6px}
+  .msg{min-height:20px;font-size:13px;margin-top:10px;text-align:center}
+  .msg.ok{color:var(--green)} .msg.err{color:var(--red)}
+  @media(max-width:480px){
+    .page{padding:14px 0 40px}
+    h1{font-size:18px}
+    .btn-primary{padding:13px}
+  }
+</style>
+</head>
+<body>
+<div id="loginScreen">
+  <div class="card">
+    <div class="emoji">💊</div>
+    <h2>吃药记录</h2>
+    <p>请输入你的姓名和验证码</p>
+    <input id="loginName" placeholder="姓名" autocomplete="name">
+    <input id="loginPwd" inputmode="numeric" maxlength="6" placeholder="验证码（问家长要）" style="letter-spacing:3px">
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">登录</button>
+    <p id="loginError"></p>
+    <p style="margin-top:16px"><a class="link-btn" href="每日打卡.html">← 回到学习打卡</a></p>
+  </div>
+</div>
+
+<div class="page" id="mainApp" style="display:none">
+  <div class="topbar">
+    <div class="who">👋 <b id="welcomeName"></b> 的吃药记录</div>
+    <div class="acts">
+      <button class="link-btn" onclick="location.href='每日打卡.html'">学习打卡</button>
+      <button class="link-btn" onclick="location.href='家务打卡.html'">家务打卡</button>
+      <button class="link-btn danger" onclick="doLogout()">退出</button>
+    </div>
+  </div>
+  <div class="card-box">
+    <h3>💊 吃药记录</h3>
+    <div class="date-row">
+      <label>日期</label>
+      <input type="date" id="medDate">
+    </div>
+    <p class="sub" style="margin:4px 0 12px">忘记记录了？可以选过去的日期补记哦～</p>
+    <div class="field">
+      <label>药名</label>
+      <input type="text" id="medName" placeholder="如：布洛芬、维生素D" maxlength="40">
+    </div>
+    <div class="field">
+      <label>时段</label>
+      <div class="seg" id="slotSeg">
+        <button type="button" class="seg-btn active" data-slot="morning">早</button>
+        <button type="button" class="seg-btn" data-slot="noon">中</button>
+        <button type="button" class="seg-btn" data-slot="evening">晚</button>
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field">
+        <label>剂量（选填）</label>
+        <input type="text" id="medDose" placeholder="如 5ml / 1片" maxlength="30">
+      </div>
+      <div class="field">
+        <label>次数</label>
+        <input type="number" id="medTimes" min="1" max="20" value="1" inputmode="numeric">
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field">
+        <label>具体时间（选填）</label>
+        <input type="time" id="medTime">
+      </div>
+      <div class="field">
+        <label>备注（选填）</label>
+        <input type="text" id="medNote" placeholder="如：饭后服用" maxlength="50">
+      </div>
+    </div>
+    <button class="btn-primary" type="button" onclick="submitMedication()">保存记录</button>
+    <div class="msg" id="medMsg"></div>
+  </div>
+
+  <div class="card-box">
+    <h3 id="logTitle">📋 今日记录</h3>
+    <div id="medList"><div class="empty">今天还没有吃药记录哦</div></div>
+  </div>
+</div>
+
+<script src="cloud-config.js?v=2.0.1"></script>
+<script src="cloud-sync.js?v=3.6.0"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  const SLOT_LABEL = { morning:'早', noon:'中', evening:'晚' };
+  const SLOT_RANK = { morning:0, noon:1, evening:2 };
+  let selectedSlot = 'morning';
+  let LOGS = [];
+
+  async function doLogin(){
+    const btn=$('loginBtn'); btn.disabled=true; btn.textContent='登录中…'; $('loginError').textContent='';
+    try{
+      const name=$('loginName').value.trim(), code=$('loginPwd').value.trim();
+      if(!name||!code) throw new Error('请输入姓名和验证码。');
+      await window.SummerCloud.childLogin(name, code);
+      $('loginScreen').style.display='none'; $('mainApp').style.display='block';
+      await loadData();
+    }catch(e){ $('loginError').textContent=e.message||'登录失败，请重试。'; }
+    finally{ btn.disabled=false; btn.textContent='登录'; }
+  }
+  function doLogout(){
+    window.SummerCloud.childLogout();
+    location.reload();
+  }
+
+  function setMedDate(d){ const el=$('medDate'); if(el) el.value=d; }
+  function getMedDate(){ const v=$('medDate').value; const today=todayStr(); return (v && v<=today)?v:today; }
+
+  async function loadData(){
+    const me = window.SummerCloud.getChildSession();
+    $('welcomeName').textContent = me?.childName || '我';
+    setMedDate(todayStr());
+    const dateEl = $('medDate');
+    if(dateEl){ dateEl.max = todayStr(); dateEl.addEventListener('change', renderLogList); }
+    // 时段分段
+    document.querySelectorAll('#slotSeg .seg-btn').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        document.querySelectorAll('#slotSeg .seg-btn').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active'); selectedSlot = b.dataset.slot;
+      });
+    });
+    try{
+      const r = await window.SummerCloud.listMedicationLogs({ days: 120 });
+      LOGS = r.logs || [];
+    }catch(e){ LOGS = []; }
+    renderLogList();
+  }
+
+  async function submitMedication(){
+    const medicine=$('medName').value.trim();
+    const dose=$('medDose').value.trim();
+    const times=Math.max(1, Math.min(20, parseInt($('medTimes').value,10)||1));
+    const note=$('medNote').value.trim();
+    const time=$('medTime').value || null;
+    const date=getMedDate();
+    const msg=$('medMsg');
+    if(!medicine){ msg.className='msg err'; msg.textContent='请填写药名。'; return; }
+    if(date>todayStr()){ msg.className='msg err'; msg.textContent='日期不能晚于今天。'; return; }
+    msg.className='msg'; msg.textContent='保存中…';
+    try{
+      await window.SummerCloud.addMedicationLog({ medicine, doseSlot:selectedSlot, dose, times, note, takenDate:date, takenTime:time });
+      msg.className='msg ok'; msg.textContent=`已记录：${SLOT_LABEL[selectedSlot]} ${medicine}${dose?(' '+dose):''} ×${times} 💊`;
+      $('medName').value=''; $('medDose').value=''; $('medTimes').value='1'; $('medTime').value=''; $('medNote').value='';
+      const r = await window.SummerCloud.listMedicationLogs({ days: 120 });
+      LOGS = r.logs||[];
+      renderLogList();
+    }catch(e){ msg.className='msg err'; msg.textContent=e.message||'记录失败，请重试。'; }
+  }
+
+  function renderLogList(){
+    const selDate = getMedDate();
+    const today = todayStr();
+    const list=$('medList');
+    const title=$('logTitle');
+    const isToday = selDate === today;
+    title.textContent = isToday ? '📋 今日记录' : `📋 ${selDate} 记录`;
+    const dayLogs = LOGS.filter(l=>l.taken_date===selDate);
+    if(!dayLogs.length){ list.innerHTML= isToday ? '<div class="empty">今天还没有吃药记录哦</div>' : `<div class="empty">${selDate} 暂无记录</div>`; return; }
+    const sorted=[...dayLogs].sort((a,b)=>{
+      const ra=SLOT_RANK[a.dose_slot]??9, rb=SLOT_RANK[b.dose_slot]??9;
+      if(ra!==rb) return ra-rb;
+      return (a.taken_time||'').localeCompare(b.taken_time||'') || (a.created_at||'').localeCompare(b.created_at||'');
+    });
+    list.innerHTML = sorted.map(l=>{
+      const parts=[`${SLOT_LABEL[l.dose_slot]||l.dose_slot}服`];
+      if(l.dose) parts.push(l.dose);
+      if(Number(l.times)>1) parts.push(`×${l.times}`);
+      if(l.taken_time) parts.push(l.taken_time);
+      const meta = parts.join(' · ');
+      const note = l.note ? `<div class="meta">${escapeHtml(l.note)}</div>` : '';
+      return `<div class="log-item"><div><div class="name">${escapeHtml(l.medicine)}</div><div class="meta"><span class="slot-tag slot-${l.dose_slot}">${SLOT_LABEL[l.dose_slot]||l.dose_slot}</span>${escapeHtml(meta.replace(/^[^·]+/,'').replace(/^ · /,''))}</div>${note}</div><div class="right"><button class="del" type="button" onclick="deleteMed('${l.id}')">删除</button></div></div>`;
+    }).join('');
+  }
+
+  async function deleteMed(id){
+    if(!confirm('确认删除这条吃药记录吗？')) return;
+    try{
+      await window.SummerCloud.deleteMedicationLog(id);
+      const r = await window.SummerCloud.listMedicationLogs({ days: 120 });
+      LOGS = r.logs||[];
+      renderLogList();
+    }catch(e){ alert(e.message||'删除失败'); }
+  }
+
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // 启动时若已有登录态则直接进入
+  (async()=>{
+    const me = window.SummerCloud.getChildSession();
+    if(me && me.childId){
+      $('loginScreen').style.display='none'; $('mainApp').style.display='block';
+      try{ await window.SummerCloud.ensureAnonymousSession(); }catch(_){}
+      await loadData();
+    }
+  })();
+</script>
+</body>
+</html>

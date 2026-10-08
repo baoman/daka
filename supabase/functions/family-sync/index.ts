@@ -533,6 +533,60 @@ Deno.serve(async (request) => {
     if (error) return reply({ error: error.message }, 400);
     return reply({ ok: true });
   }
+  // ===== 吃药记录（孩子录入 + 家长可查看/删除）=====
+  if (action === 'add_medication_log') {
+    const childId = String(body.childId || '');
+    if (!childId) return reply({ error: '请先登录。' }, 400);
+    const { data: child } = await admin.from('children').select('id').eq('id', childId).maybeSingle();
+    if (!child) return reply({ error: '孩子信息无效。' }, 400);
+    const medicine = String(body.medicine || '').trim();
+    const doseSlot = String(body.doseSlot || '');
+    const dose = String(body.dose || '').trim().slice(0, 30);
+    const times = Math.max(1, Math.min(Math.floor(Number(body.times) || 1), 20));
+    const note = String(body.note || '').trim().slice(0, 50);
+    const takenDate = validScheduleDate(body.takenDate) ? String(body.takenDate) : new Date().toISOString().slice(0, 10);
+    const takenTime = typeof body.takenTime === 'string' && /^\d{2}:\d{2}$/.test(body.takenTime) ? body.takenTime : null;
+    if (!medicine || medicine.length > 40) return reply({ error: '药名需 1-40 个字。' }, 400);
+    if (!['morning', 'noon', 'evening'].includes(doseSlot)) return reply({ error: '请选择时段（早/中/晚）。' }, 400);
+    const { data, error } = await admin.from('medication_logs').insert({
+      owner_id: FAMILY_OWNER_ID, child_id: childId, medicine, dose_slot: doseSlot, dose, times, note, taken_date: takenDate, taken_time: takenTime
+    }).select('*').single();
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true, log: data });
+  }
+  if (action === 'list_medication_logs') {
+    const days = Math.min(Number(body.days) || 30, 120);
+    const since = new Date(); since.setDate(since.getDate() - days + 1);
+    const from = since.toISOString().slice(0, 10);
+    let query = admin.from('medication_logs').select('*').gte('taken_date', from);
+    if (isParent) {
+      const { data: children } = await admin.from('children').select('id').eq('owner_id', userId);
+      const ids = (children || []).map((c: { id: string }) => c.id);
+      if (!ids.length) return reply({ ok: true, logs: [] });
+      query = query.in('child_id', ids);
+    } else {
+      const childId = String(body.childId || '');
+      if (!childId) return reply({ error: '请先登录。' }, 400);
+      query = query.eq('child_id', childId);
+    }
+    const { data, error } = await query.order('taken_date', { ascending: false }).order('created_at', { ascending: false });
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true, logs: data || [] });
+  }
+  if (action === 'delete_medication_log') {
+    const id = String(body.id || '');
+    let query = admin.from('medication_logs').delete().eq('id', id);
+    if (isParent) query = query.eq('owner_id', userId);
+    else {
+      const childId = String(body.childId || '');
+      if (!childId) return reply({ error: '请先登录。' }, 400);
+      query = query.eq('child_id', childId);
+    }
+    const { error } = await query;
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true });
+  }
+
   if (action === 'chore_total') {
     // 数据库侧直接给出累计合计金额（只取 amount 单列聚合，轻量快速）
     let query = admin.from('chore_logs').select('amount');

@@ -349,6 +349,21 @@
     return invokeAsAdmin('delete_chore_expense', { id });
   }
 
+  // ===== 吃药记录（孩子端记录 + 家长可查看/删除） =====
+  async function addMedicationLog(payload) {
+    return invokeAsChild('add_medication_log', payload || {});
+  }
+  async function listMedicationLogs(params) {
+    const session = getChildSession();
+    if (session?.childId) return invokeAsChild('list_medication_logs', params || {});
+    return invokeAsAdmin('list_medication_logs', params || {});
+  }
+  async function deleteMedicationLog(id) {
+    const session = getChildSession();
+    if (session?.childId) return invokeAsChild('delete_medication_log', { id });
+    return invokeAsAdmin('delete_medication_log', { id });
+  }
+
   // ===== 孩子进度（云端持久化） =====
   async function loadChildProgress() {
     return invokeAsChild('load_progress');
@@ -435,6 +450,9 @@
     addChoreExpense,
     listChoreExpenses,
     deleteChoreExpense,
+    addMedicationLog,
+    listMedicationLogs,
+    deleteMedicationLog,
     listChildren,
     createChild,
     updateChild,
