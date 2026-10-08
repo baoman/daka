@@ -363,6 +363,12 @@
     if (session?.childId) return invokeAsChild('delete_medication_log', { id });
     return invokeAsAdmin('delete_medication_log', { id });
   }
+  async function updateMedicationLog(id, payload) {
+    const session = getChildSession();
+    const body = { id, ...(payload || {}) };
+    if (session?.childId) return invokeAsChild('update_medication_log', body);
+    return invokeAsAdmin('update_medication_log', body);
+  }
 
   // ===== 孩子进度（云端持久化） =====
   async function loadChildProgress() {
@@ -453,6 +459,7 @@
     addMedicationLog,
     listMedicationLogs,
     deleteMedicationLog,
+    updateMedicationLog,
     listChildren,
     createChild,
     updateChild,
